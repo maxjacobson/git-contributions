@@ -39,7 +39,9 @@ Behavioral decisions worth remembering:
 - Contributor metadata lives repo-locally, outside history:
   `.jj/git-contributions-metadata` (jj) or `.git/git-contributions-metadata`
   (git). JSON, keyed by mailmapped name, with note/active/team/aliases; the
-  README has the schema. `t` toggles the teams view; unassigned contributors
+  README has the schema. `e` in the contributor view opens a form to edit a
+  profile (tab cycles fields, space flips active, enter saves, esc cancels).
+  `t` toggles the teams view; unassigned contributors
   land in a `(no team)` bucket
 
 ## The diff pane

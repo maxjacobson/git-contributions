@@ -33,6 +33,9 @@ The data lives entirely outside the repo's history, in a repo-local file:
 - jj repos: `.jj/git-contributions-metadata`
 - git repos: `.git/git-contributions-metadata`
 
+Edit it by hand, or press `e` on a contributor in the contributor view to
+fill in the form (tab moves between fields, space flips active, enter saves,
+esc cancels):
 ```json
 {
   "Akira Matsuda": {
@@ -83,6 +86,8 @@ Flags:
   shown with `enter`
 - `enter` — drill into the selected month or contributor; in the commit
   view, show or hide the commit's colorized diff
+- `e` — in the contributor view, edit the selected contributor's profile
+  (note, team, active) in a form; saved to the repo-local metadata file
 - `t` — in the contributor view, toggle between people and teams
 - `space`/`pgup`/`pgdn` — page the commit diff
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
