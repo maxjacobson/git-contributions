@@ -41,10 +41,9 @@ Flags:
 
 ## Keys
 
-- `↑`/`↓` — move through the list
+- `↑`/`↓` and `j`/`k` — navigate the list; scroll the commit diff once it's
+  shown with `s`
 - `enter` — drill into the selected month, contributor, or commit
-- `j`/`k` — scroll the commit diff (once shown with `s`); navigate the
-  commit list otherwise
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `s` — show or hide the commit's colorized diff in the preview pane
 - `esc` — close the commit diff if shown, otherwise back out (or quit from

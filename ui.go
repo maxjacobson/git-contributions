@@ -39,6 +39,11 @@ var (
 
 	footerStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
+
+	diffPaneStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("39")).
+			Padding(1, 2)
 )
 
 type monthItem struct {
@@ -147,6 +152,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.list.SetSize(msg.Width/3, msg.Height-1)
 		m.resizeDiff()
+		if m.mode == modeCommits && m.showDiff && m.diffHash != "" {
+			m.loadDiff(m.diffHash)
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -203,7 +211,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.mode == modeCommits && m.showDiff {
 			switch msg.String() {
-			case "j", "k", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
+			case "j", "k", "up", "down", " ", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
 				var cmd tea.Cmd
 				m.diffViewport, cmd = m.diffViewport.Update(msg)
 				return m, cmd
@@ -232,15 +240,16 @@ func (m model) selectedCommitHash() string {
 	return item.commit.Hash
 }
 
-// diffPaneWidth is the width available for diff text inside the preview.
+// diffPaneWidth is the width available for diff text inside the preview,
+// leaving room for the pane border and padding.
 func (m model) diffPaneWidth() int {
-	return m.width - m.width/3 - 4
+	return m.width - m.width/3 - 6
 }
 
 // diffPaneHeight is the height available for the diff viewport, leaving room
-// for the footer, the preview padding, and the commit subject header.
+// for the footer, the pane border and padding, and the commit subject header.
 func (m model) diffPaneHeight() int {
-	h := m.height - 5
+	h := m.height - 7
 	if h < 1 {
 		h = 1
 	}
@@ -264,16 +273,43 @@ func (m *model) loadDiff(hash string) {
 		m.resizeDiff()
 		return
 	}
-	output, err := m.repo.DiffOutput(hash)
+	output, err := m.repo.DiffOutput(hash, m.diffPaneWidth())
 	if err != nil {
 		m.diffWrapped = "Could not load diff: " + err.Error()
 	} else if strings.TrimSpace(output) == "" {
 		m.diffWrapped = "No diff shown for merge commits."
 	} else {
-		m.diffWrapped = strings.TrimSuffix(output, "\n")
+		m.diffWrapped = fillBackgrounds(strings.TrimSuffix(output, "\n"), m.diffPaneWidth())
 	}
 	m.resizeDiff()
 	m.diffViewport.GotoTop()
+}
+
+// fillBackgrounds expands delta's erase-to-end-of-line sequences into literal
+// spaces, since the TUI renderer does not honor them: without this, colored
+// line backgrounds stop at the last character instead of running edge to
+// edge.
+func fillBackgrounds(s string, width int) string {
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = fillLineBackground(line, width)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func fillLineBackground(line string, width int) string {
+	for _, seq := range []string{"\x1b[0K", "\x1b[K"} {
+		idx := strings.Index(line, seq)
+		if idx == -1 {
+			continue
+		}
+		prefix, suffix := line[:idx], line[idx+len(seq):]
+		if pad := width - ansi.StringWidth(prefix); pad > 0 {
+			return prefix + strings.Repeat(" ", pad) + suffix
+		}
+		return prefix + suffix
+	}
+	return line
 }
 
 func (m model) selectedMonth() (MonthSummary, bool) {
@@ -426,7 +462,7 @@ func (m model) footer() string {
 			keys = append(keys, "o open on github")
 		}
 		if m.showDiff {
-			keys = append(keys, "j/k scroll", "s hide diff", "esc back", "q quit")
+			keys = append(keys, "↑/↓ scroll", "s hide diff", "esc back", "q quit")
 		} else {
 			keys = append(keys, "s show diff", "esc back", "q quit")
 		}
@@ -455,11 +491,11 @@ func (m model) View() string {
 		}
 	case modeCommits:
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
+			header := previewHeaderStyle.Render(item.commit.Subject)
 			if m.showDiff {
-				header := previewHeaderStyle.Render(item.commit.Subject)
-				preview = header + "\n" + m.diffViewport.View()
+				preview = diffPaneStyle.Render(header + "\n" + m.diffViewport.View())
 			} else {
-				preview = previewHeaderStyle.Render(item.commit.Subject) + "\n" + renderCommitPreview(item)
+				preview = previewStyle.Render(header + "\n" + renderCommitPreview(item))
 			}
 		} else {
 			preview = "No commits this month."

@@ -130,15 +130,32 @@ func (r *Repo) LoadCommits() ([]Commit, error) {
 	return ParseLog(output)
 }
 
-// DiffOutput returns the colorized output of showing one commit, exactly as
-// git show or jj show would render it in a terminal.
-func (r *Repo) DiffOutput(hash string) (string, error) {
-	var cmd *exec.Cmd
+// DiffOutput returns the colorized output of showing one commit. Delta, when
+// configured, colorizes the diff with syntax highlighting (with no pager, so
+// the output lands in our own viewport), using the invocation from the
+// user's git pager config so themes and options carry over, and padded to
+// the given width so line backgrounds run edge to edge.
+func (r *Repo) DiffOutput(hash string, width int) (string, error) {
+	var show string
 	if r.IsJJ {
-		cmd = exec.Command("jj", "show", "-r", hash, "--no-pager", "--color", "always")
+		show = fmt.Sprintf("jj show -r %s --no-pager --color never", hash)
 	} else {
-		cmd = exec.Command("git", r.gitArgs("--no-pager", "-c", "color.ui=always", "show", hash)...)
+		show = "git --no-pager show " + hash
 	}
+
+	var script string
+	if delta := r.deltaCommand(); delta != "" {
+		if width > 0 {
+			delta += fmt.Sprintf(" --width=%d", width)
+		}
+		script = show + " | " + delta
+	} else if r.IsJJ {
+		script = show + " --color always"
+	} else {
+		script = "git --no-pager -c color.ui=always show " + hash
+	}
+
+	cmd := exec.Command("sh", "-c", script)
 	cmd.Dir = r.Dir
 	out, err := cmd.Output()
 	if err != nil {
@@ -148,6 +165,22 @@ func (r *Repo) DiffOutput(hash string) (string, error) {
 		return "", fmt.Errorf("diff failed: %w", err)
 	}
 	return string(out), nil
+}
+
+// deltaCommand returns the user's configured delta invocation from their git
+// pager config, so their theme and options apply, or a bare delta if it is
+// installed, or empty when delta is not in play.
+func (r *Repo) deltaCommand() string {
+	out, err := r.runGit(r.gitArgs("config", "--get", "core.pager")...)
+	if err == nil {
+		if pager := strings.TrimSpace(string(out)); strings.HasPrefix(pager, "delta") {
+			return pager
+		}
+	}
+	if _, err := exec.LookPath("delta"); err == nil {
+		return "delta"
+	}
+	return ""
 }
 
 // FilterDependabot drops commits by dependabot, matching the original
