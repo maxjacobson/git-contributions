@@ -15,7 +15,8 @@ Three drill-down levels, each with a preview pane on the right:
    deletions, floored), total insertions and deletions
 3. Commits of the selected contributor, newest first; the preview shows
    commit metadata, and `enter` swaps it for the commit's own colorized
-   rendering in a bordered, scrollable pane
+   rendering in a bordered, scrollable pane; `o` opens the commit on GitHub
+   when origin points at github.com (macOS `open`, Linux `xdg-open`)
 
 Behavioral decisions worth remembering:
 
@@ -40,9 +41,13 @@ Behavioral decisions worth remembering:
   `.jj/git-contributions-metadata` (jj) or `.git/git-contributions-metadata`
   (git). JSON, keyed by mailmapped name, with active/team/aliases; the
   README has the schema. `e` in the contributor view opens a form to edit a
-  profile (tab cycles fields; on team, ↓/↑ picks from known teams or "(new team…)"; space flips the yes/no radio; enter saves; esc cancels).
+  profile (tab and shift+tab cycle fields; on team, ↓/↑ picks from known
+  teams or "(new team…)"; space, ←/→, or h/l flips the yes/no radio; enter
+  saves; esc cancels).
   `t` toggles the teams view; unassigned contributors
-  land in a `(no team)` bucket
+  land in a `(no team)` bucket. `enter` on a team opens that team's commits
+  for the month, each labeled with its author; esc backs out to the teams
+  view, then the contributor view
 
 ## The diff pane
 
@@ -51,8 +56,9 @@ tools and display it:
 
 - `jj show -r <hash> --no-pager --color never` in jj repos, `git --no-pager
   show <hash>` in git repos, piped through delta when one is configured
-- The delta invocation is read from `core.pager` so MJ's theme and options
-  carry over; delta is given `--width` so line backgrounds paint edge to
+- The delta invocation is read from `core.pager` when it starts with delta,
+  with bare `delta` on PATH as the fallback, so MJ's theme and options carry
+  over; delta is given `--width` so line backgrounds paint edge to
   edge
 - Delta pads with `ESC[0K`, which terminals render via the current
   background but bubbletea does not honor; expand those sequences into
@@ -78,7 +84,8 @@ tools and display it:
 - `metadata.go` — contributor profiles: load, aliases, lookup
 - `parse.go` — parses the `git log --shortstat` output format
 - `repo.go` — jj vs git detection, running git/jj, GitHub slug from origin
-- `ui.go` — the TUI: three views, preview panes, actions bar, diff viewport
+- `ui.go` — the TUI: month/contributor/team/commit views, preview panes,
+  actions bar, diff viewport, profile form
 - `main.go` — flags and wiring
 
 ## Conventions

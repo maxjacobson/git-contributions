@@ -34,9 +34,9 @@ The data lives entirely outside the repo's history, in a repo-local file:
 - git repos: `.git/git-contributions-metadata`
 
 Edit it by hand, or press `e` on a contributor in the contributor view to
-fill in the form (tab moves between fields; ↓/↑ picks a known team or "(new
-team…)" to type one, space or ←/→ flips the yes/no radio, enter saves, esc
-cancels):
+fill in the form (tab and shift+tab move between fields; on the team field,
+↓/↑ picks a known team or "(new team…)" to type one; space, ←/→, or h/l
+flips the yes/no radio; enter saves, esc cancels):
 ```json
 {
   "Akira Matsuda": {
@@ -90,7 +90,7 @@ Flags:
 - `e` — in the contributor view, edit the selected contributor's profile
   (team, active) in a form; saved to the repo-local metadata file
 - `t` — in the contributor view, toggle between people and teams
-- `space`/`pgup`/`pgdn` — page the commit diff
+- `space`/`pgup`/`pgdn`, `ctrl+d`/`ctrl+u`, `home`/`end` — page the commit diff
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `esc` — close the commit diff if shown, otherwise back out (or quit from
   the month list)
@@ -104,8 +104,8 @@ the top.
 
 The commit diff is rendered by your own tools, not reimplemented: `jj show`
 in jj repos, `git show` in git repos, piped through `delta` when one is
-configured (the invocation is read from `core.pager`, so your theme and
-options carry over). Delta is given the pane width so line backgrounds paint
+available (the invocation is read from `core.pager`, so your theme and
+options carry over; bare `delta` on your `PATH` is used as a fallback). Delta is given the pane width so line backgrounds paint
 edge to edge; its erase-to-end-of-line padding is expanded into literal
 spaces because bubbletea does not honor it. The diff is captured once per
 commit, on demand, and refetched when the selection or terminal size
