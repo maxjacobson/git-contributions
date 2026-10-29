@@ -22,13 +22,13 @@ func (c Commit) Size() int {
 
 // AuthorStats summarizes one author's contributions in one month.
 type AuthorStats struct {
-	Author      string
-	Commits     int
-	MergeCount  int
-	MedianSize  int
-	MeanSize    int
-	Insertions  int
-	Deletions   int
+	Author     string
+	Commits    int
+	MergeCount int
+	MedianSize int
+	MeanSize   int
+	Insertions int
+	Deletions  int
 }
 
 // MonthSummary describes one month's contributions.
