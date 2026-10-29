@@ -40,7 +40,7 @@ Behavioral decisions worth remembering:
   `.jj/git-contributions-metadata` (jj) or `.git/git-contributions-metadata`
   (git). JSON, keyed by mailmapped name, with note/active/team/aliases; the
   README has the schema. `e` in the contributor view opens a form to edit a
-  profile (tab cycles fields, space flips active, enter saves, esc cancels).
+  profile (tab cycles fields, space or arrows flip the yes/no radio, enter saves, esc cancels).
   `t` toggles the teams view; unassigned contributors
   land in a `(no team)` bucket
 

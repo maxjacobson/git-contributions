@@ -19,16 +19,3 @@ func TestDayLabel(t *testing.T) {
 		t.Errorf("got %q, want it passed through", got)
 	}
 }
-
-func TestParseActive(t *testing.T) {
-	for _, yes := range []string{"y", "Y", "yes", "true", "1", " y "} {
-		if !parseActive(yes) {
-			t.Errorf("parseActive(%q) = false, want true", yes)
-		}
-	}
-	for _, no := range []string{"n", "no", "false", "", "0", "maybe"} {
-		if parseActive(no) {
-			t.Errorf("parseActive(%q) = true, want false", no)
-		}
-	}
-}

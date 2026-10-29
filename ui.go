@@ -133,6 +133,7 @@ type form struct {
 	author   string
 	inputs   []textinput.Model
 	focus    int
+	active   bool
 	errorMsg string
 }
 
@@ -498,15 +499,7 @@ func (m model) openForm(author string) (tea.Model, tea.Cmd) {
 	team.Width = 40
 	team.SetValue(profile.Team)
 
-	active := textinput.New()
-	active.Width = 40
-	if profile.Active {
-		active.SetValue("y")
-	} else {
-		active.SetValue("n")
-	}
-
-	m.form = form{author: author, inputs: []textinput.Model{note, team, active}}
+	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active}
 	cmd := m.form.inputs[0].Focus()
 	m.mode = modeForm
 	return m, cmd
@@ -523,21 +516,14 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.saveForm()
 		case "tab", "down":
-			m.form.focus = (m.form.focus + 1) % len(m.form.inputs)
-			m.form.inputs[m.form.focus].Focus()
+			m.form.focus = (m.form.focus + 1) % 3
 			return m, nil
 		case "shift+tab", "up":
-			m.form.focus = (m.form.focus + len(m.form.inputs) - 1) % len(m.form.inputs)
-			m.form.inputs[m.form.focus].Focus()
+			m.form.focus = (m.form.focus + 2) % 3
 			return m, nil
-		case " ":
+		case " ", "left", "right", "h", "l":
 			if m.form.focus == 2 {
-				active := &m.form.inputs[2]
-				if strings.TrimSpace(active.Value()) == "y" {
-					active.SetValue("n")
-				} else {
-					active.SetValue("y")
-				}
+				m.form.active = !m.form.active
 				return m, nil
 			}
 		}
@@ -560,7 +546,7 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 	profile := Profile{
 		Note:    strings.TrimSpace(m.form.inputs[0].Value()),
 		Team:    strings.TrimSpace(m.form.inputs[1].Value()),
-		Active:  parseActive(m.form.inputs[2].Value()),
+		Active:  m.form.active,
 		Aliases: previous.Aliases,
 	}
 
@@ -580,26 +566,23 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 	return m.switchToAuthors(m.currentMonth)
 }
 
-// parseActive reads the Active field's y/n-style value.
-func parseActive(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "y", "yes", "true", "1":
-		return true
-	}
-	return false
-}
-
 // formView renders the profile form, centered.
 func (m model) formView() string {
 	var b strings.Builder
 	b.WriteString(previewHeaderStyle.Render(m.form.author) + "\n\n")
 	labels := []string{"Note", "Team", "Active"}
-	for i, input := range m.form.inputs {
+	for i := range labels {
 		cursor := "  "
 		if i == m.form.focus {
 			cursor = "> "
 		}
-		fmt.Fprintf(&b, "%s%-7s %s\n", cursor, labels[i]+":", input.View())
+		fmt.Fprintf(&b, "%s%-7s ", cursor, labels[i]+":")
+		if i < len(m.form.inputs) {
+			b.WriteString(m.form.inputs[i].View())
+		} else {
+			b.WriteString(m.renderActiveRadio())
+		}
+		b.WriteString("\n")
 	}
 	if m.form.errorMsg != "" {
 		b.WriteString("\n" + errorStyle.Render(m.form.errorMsg) + "\n")
@@ -607,6 +590,23 @@ func (m model) formView() string {
 	b.WriteString("\n" + footerStyle.Render("enter save · esc cancel · tab next field · space toggle active"))
 	box := formStyle.Render(strings.TrimSuffix(b.String(), "\n"))
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+}
+
+// renderActiveRadio renders the Active field's yes/no radio pair, with the
+// selected option filled and highlighted.
+func (m model) renderActiveRadio() string {
+	yes, no := "( )", "( )"
+	if m.form.active {
+		yes = "(●)"
+	} else {
+		no = "(●)"
+	}
+	chosen := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
+	other := footerStyle
+	if m.form.active {
+		return chosen.Render(yes+" yes") + other.Render("   "+no+" no")
+	}
+	return other.Render(yes+" yes   ") + chosen.Render(no+" no")
 }
 
 func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
