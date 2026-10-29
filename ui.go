@@ -86,9 +86,6 @@ func (a authorItem) Description() string {
 	if a.profile.Team != "" {
 		desc += " · " + a.profile.Team
 	}
-	if a.profile.Note != "" {
-		desc += " · " + a.profile.Note
-	}
 	if a.profile.Active {
 		desc += " · active"
 	}
@@ -734,15 +731,15 @@ func renderMonthPreview(summary MonthSummary) string {
 // columns as the original script.
 func renderAuthorPreview(item authorItem) string {
 	var b strings.Builder
-	if item.profile.Team != "" || item.profile.Note != "" || item.profile.Active {
+	if item.profile.Team != "" || item.profile.Active {
 		if item.profile.Team != "" {
 			fmt.Fprintf(&b, "%-18s %s\n", "Team", item.profile.Team)
 		}
 		if item.profile.Active {
 			fmt.Fprintf(&b, "%-18s %s\n", "Active", "yes")
-		}
-		if item.profile.Note != "" {
-			fmt.Fprintf(&b, "%-18s %s\n", "Note", item.profile.Note)
+			if item.profile.Note != "" {
+				fmt.Fprintf(&b, "%-18s %s\n", "Note", item.profile.Note)
+			}
 		}
 		fmt.Fprint(&b, "\n")
 	}
