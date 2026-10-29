@@ -61,8 +61,8 @@ func (m monthItem) Description() string {
 func (m monthItem) FilterValue() string { return m.summary.Month }
 
 type authorItem struct {
-	stats AuthorStats
-	month string
+	stats   AuthorStats
+	profile Profile
 }
 
 func (a authorItem) Title() string {
@@ -70,7 +70,17 @@ func (a authorItem) Title() string {
 }
 
 func (a authorItem) Description() string {
-	return fmt.Sprintf("%d commits", a.stats.Commits)
+	desc := fmt.Sprintf("%d commits", a.stats.Commits)
+	if a.profile.Team != "" {
+		desc += " · " + a.profile.Team
+	}
+	if a.profile.Note != "" {
+		desc += " · " + a.profile.Note
+	}
+	if a.profile.Active {
+		desc += " · active"
+	}
+	return desc
 }
 
 func (a authorItem) FilterValue() string { return a.stats.Author }
@@ -122,9 +132,10 @@ type model struct {
 	currentAuthor string
 	repo          *Repo
 	slug          string
+	metadata      Metadata
 }
 
-func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string) model {
+func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string, metadata Metadata) model {
 	items := make([]list.Item, len(months))
 	for i, summary := range months {
 		items[i] = monthItem{summary: summary}
@@ -137,7 +148,7 @@ func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string) 
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 
-	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug}
+	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug, metadata: metadata}
 }
 
 func (m model) Init() tea.Cmd {
@@ -344,7 +355,8 @@ func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 		items := make([]list.Item, len(summary.Authors))
 		index := 0
 		for i, stats := range summary.Authors {
-			items[i] = authorItem{stats: stats, month: month}
+			profile, _ := m.metadata.Lookup(stats.Author)
+			items[i] = authorItem{stats: stats, profile: profile}
 			if stats.Author == m.currentAuthor {
 				index = i
 			}
@@ -402,6 +414,18 @@ func renderMonthPreview(summary MonthSummary) string {
 func renderAuthorPreview(item authorItem) string {
 	stats := item.stats
 	var b strings.Builder
+	if item.profile.Team != "" || item.profile.Note != "" || item.profile.Active {
+		if item.profile.Team != "" {
+			fmt.Fprintf(&b, "%-18s %s\n", "Team", item.profile.Team)
+		}
+		if item.profile.Active {
+			fmt.Fprintf(&b, "%-18s %s\n", "Active", "yes")
+		}
+		if item.profile.Note != "" {
+			fmt.Fprintf(&b, "%-18s %s\n", "Note", item.profile.Note)
+		}
+		fmt.Fprint(&b, "\n")
+	}
 	fmt.Fprintf(&b, "%-18s %d\n", "Merge commits", stats.MergeCount)
 	fmt.Fprintf(&b, "%-18s %d\n", "Non-merge commits", stats.Commits-stats.MergeCount)
 	fmt.Fprint(&b, "\n")
@@ -511,11 +535,11 @@ func (m model) previewPane(preview string) string {
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
-func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string) error {
+func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string, metadata Metadata) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
 		return nil
 	}
-	_, err := tea.NewProgram(newModel(commits, months, repo, slug), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(commits, months, repo, slug, metadata), tea.WithAltScreen()).Run()
 	return err
 }

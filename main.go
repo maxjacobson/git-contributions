@@ -23,7 +23,12 @@ func main() {
 
 	slug := repo.GitHubSlug()
 
-	if err := RunUI(os.Stdout, commits, SummarizeMonths(commits), repo, slug); err != nil {
+	metadata, err := LoadMetadata(repo.MetadataFile())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: ignoring contributor metadata: %v\n", err)
+	}
+
+	if err := RunUI(os.Stdout, commits, SummarizeMonths(commits), repo, slug, metadata); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -120,6 +121,18 @@ func ParseGitHubSlug(url string) string {
 // highlighting: it consumes the raw diff from either tool.
 
 // shellQuote single-quotes a string for safe use in a shell command.
+
+// MetadataFile returns the repo-local contributor metadata file location.
+func (r *Repo) MetadataFile() string {
+	if r.IsJJ {
+		return filepath.Join(r.Dir, ".jj", "git-contributions-metadata")
+	}
+	out, err := r.runGit("rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(strings.TrimSpace(string(out)), "git-contributions-metadata")
+}
 
 // LoadCommits fetches and parses the repo's commit history.
 func (r *Repo) LoadCommits() ([]Commit, error) {
