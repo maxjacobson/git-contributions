@@ -116,13 +116,19 @@ func ParseGitHubSlug(url string) string {
 
 // ShowCommand returns the command that shows one commit's diff in our own
 // always-paging less, since the user's pager may be "cat" (jj) or exit on
-// short diffs (less -F). The rendering still comes from the user's tools:
-// jj's own renderer in jj repos, delta (if installed) in plain git repos.
+// short diffs (less -F). Delta, when installed, provides the syntax
+// highlighting: it consumes the raw diff from either tool.
 func (r *Repo) ShowCommand(hash string) *exec.Cmd {
+	_, deltaErr := exec.LookPath("delta")
+	hasDelta := deltaErr == nil
+
 	var script string
-	if r.IsJJ {
+	switch {
+	case r.IsJJ && hasDelta:
+		script = fmt.Sprintf("jj show -r %s --no-pager --color never | delta | less -R", hash)
+	case r.IsJJ:
 		script = fmt.Sprintf("jj show -r %s --no-pager --color always | less -R", hash)
-	} else {
+	default:
 		git := "git --no-pager -c color.ui=always"
 		if r.MailmapFile != "" {
 			git += " -c mailmap.file=" + shellQuote(r.MailmapFile)
@@ -131,7 +137,7 @@ func (r *Repo) ShowCommand(hash string) *exec.Cmd {
 			git += " --git-dir=" + shellQuote(r.GitDir)
 		}
 		script = fmt.Sprintf("%s show %s", git, hash)
-		if _, err := exec.LookPath("delta"); err == nil {
+		if hasDelta {
 			script += " | delta | less -R"
 		} else {
 			script += " | less -R"
