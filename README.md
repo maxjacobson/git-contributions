@@ -16,7 +16,7 @@ Three levels, each with a preview pane on the right:
 2. **Contributors** of the selected month, with commit metadata: merge and
    non-merge commit counts, then median and mean commit size (insertions
    plus deletions, floored), total insertions and deletions
-3. **Commits** of the selected contributor, newest first; `s` swaps the
+3. **Commits** of the selected contributor, newest first; `enter` swaps the
    metadata preview for the commit's own colorized rendering in a bordered,
    scrollable pane
 
@@ -54,11 +54,11 @@ Flags:
 ## Keys
 
 - `↑`/`↓` and `j`/`k` — navigate the list; scroll the commit diff once it's
-  shown with `s`
-- `enter` — drill into the selected month, contributor, or commit
+  shown with `enter`
+- `enter` — drill into the selected month or contributor; in the commit
+  view, show or hide the commit's colorized diff
 - `space`/`pgup`/`pgdn` — page the commit diff
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
-- `s` — show or hide the commit's colorized diff in the preview pane
 - `esc` — close the commit diff if shown, otherwise back out (or quit from
   the month list)
 - `q` or `ctrl+c` — quit

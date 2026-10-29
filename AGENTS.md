@@ -14,7 +14,7 @@ Three drill-down levels, each with a preview pane on the right:
    commit counts, then median and mean commit size (insertions plus
    deletions, floored), total insertions and deletions
 3. Commits of the selected contributor, newest first; the preview shows
-   commit metadata, and `s` swaps it for the commit's own colorized
+   commit metadata, and `enter` swaps it for the commit's own colorized
    rendering in a bordered, scrollable pane
 
 Behavioral decisions worth remembering:
@@ -50,9 +50,9 @@ tools and display it:
 - Delta pads with `ESC[0K`, which terminals render via the current
   background but bubbletea does not honor; expand those sequences into
   literal spaces at the pane width before display
-- The diff is captured lazily per commit (on `s`), refetched when the
+- The diff is captured lazy per commit (on `enter`), refetched when the
   selection or terminal size changes
-- `s` toggles the pane, `esc` closes it before leaving the view, and
+- `enter` toggles the pane, `esc` closes it before leaving the view, and
   `↑`/`↓`, `j`/`k` always do the same thing: navigate lists, scroll the
   open diff
 

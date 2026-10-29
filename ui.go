@@ -183,18 +183,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if item, ok := m.list.SelectedItem().(authorItem); ok {
 					return m.switchToCommits(item.stats.Author)
 				}
-			}
-		case "o":
-			if m.mode == modeCommits && m.slug != "" {
-				if item, ok := m.list.SelectedItem().(commitItem); ok {
-					url := fmt.Sprintf("https://github.com/%s/commit/%s", m.slug, item.commit.Hash)
-					if cmd := openBrowser(url); cmd != nil {
-						return m, tea.ExecProcess(cmd, nil)
-					}
-				}
-			}
-		case "s":
-			if m.mode == modeCommits {
+			case modeCommits:
 				if item, ok := m.list.SelectedItem().(commitItem); ok {
 					if m.showDiff {
 						m.showDiff = false
@@ -204,6 +193,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.loadDiff(item.commit.Hash)
 						}
 						m.diffViewport.GotoTop()
+					}
+				}
+			}
+		case "o":
+			if m.mode == modeCommits && m.slug != "" {
+				if item, ok := m.list.SelectedItem().(commitItem); ok {
+					url := fmt.Sprintf("https://github.com/%s/commit/%s", m.slug, item.commit.Hash)
+					if cmd := openBrowser(url); cmd != nil {
+						return m, tea.ExecProcess(cmd, nil)
 					}
 				}
 			}
@@ -462,9 +460,9 @@ func (m model) footer() string {
 			keys = append(keys, "o open on github")
 		}
 		if m.showDiff {
-			keys = append(keys, "↑/↓ scroll", "s hide diff", "esc back", "q quit")
+			keys = append(keys, "↑/↓ scroll", "enter hide diff", "esc back", "q quit")
 		} else {
-			keys = append(keys, "s show diff", "esc back", "q quit")
+			keys = append(keys, "enter show diff", "esc back", "q quit")
 		}
 	}
 	return footerStyle.Render(strings.Join(keys, " · "))
