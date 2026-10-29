@@ -20,6 +20,9 @@ browses commit history by month in a terminal UI.
 - Names are mailmapped: git runs from the workspace root (and gets
   `mailmap.file` passed explicitly when .mailmap exists there), since git
   does not discover .mailmap when --git-dir points inside .jj
+- Merge commits count toward commit totals but are excluded from the size
+  statistics: they have no stat line, and counting their zero size drove
+  medians to 0 in merge-heavy repos like rails/rails
 
 ## Commands
 

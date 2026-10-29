@@ -6,7 +6,9 @@ When run from a git repo, it shows every month during which commits occurred.
 Focusing a month previews its contributors with commit counts, sorted by
 commit count. Drilling into a month shows per-author metadata: commit count,
 median and mean commit size (insertions plus deletions, rounded down), and
-total insertions and deletions.
+total insertions and deletions. Merge commits count toward the commit total
+but are excluded from the size statistics, since they have no diff of their
+own.
 
 Built with [charm](https://charm.sh) (bubbletea, bubbles, lipgloss).
 

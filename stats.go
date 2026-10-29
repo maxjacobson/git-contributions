@@ -117,10 +117,12 @@ func SummarizeAuthors(commits []Commit) []AuthorStats {
 	stats := make([]AuthorStats, 0, len(authors))
 	for _, author := range authors {
 		commits := byAuthor[author]
-		sizes := make([]int, len(commits))
-		var insertions, deletions []int
-		for i, c := range commits {
-			sizes[i] = c.Size()
+		var sizes, insertions, deletions []int
+		for _, c := range commits {
+			if parentCount(c) >= 2 {
+				continue
+			}
+			sizes = append(sizes, c.Size())
 			insertions = append(insertions, c.Insertions)
 			deletions = append(deletions, c.Deletions)
 		}

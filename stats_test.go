@@ -70,11 +70,12 @@ func TestSummarizeAuthors(t *testing.T) {
 		{Month: "2024-03", Author: "Bob"},
 		{Month: "2024-03", Author: "Alice", Insertions: 4, Deletions: 4},
 		{Month: "2024-03", Author: "Alice", Insertions: 1},
+		{Month: "2024-03", Author: "Alice", Parents: "abc def"},
 	}
 
 	stats := SummarizeAuthors(commits)
 	want := []AuthorStats{
-		{Author: "Alice", Commits: 3, MedianSize: 8, MeanSize: 7, Insertions: 15, Deletions: 6},
+		{Author: "Alice", Commits: 4, MedianSize: 8, MeanSize: 7, Insertions: 15, Deletions: 6},
 		{Author: "Bob", Commits: 1, MedianSize: 0, MeanSize: 0},
 	}
 	if !reflect.DeepEqual(stats, want) {
