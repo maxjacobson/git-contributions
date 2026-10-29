@@ -38,7 +38,7 @@ type monthItem struct {
 }
 
 func (m monthItem) Title() string {
-	return m.summary.Month
+	return monthLabel(m.summary.Month)
 }
 
 func (m monthItem) Description() string {
