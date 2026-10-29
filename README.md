@@ -47,7 +47,8 @@ Flags:
   commit list otherwise
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `s` — show or hide the commit's colorized diff in the preview pane
-- `esc` — back out (or quit from the month list)
+- `esc` — close the commit diff if shown, otherwise back out (or quit from
+  the month list)
 - `q` or `ctrl+c` — quit
 
 ## Development

@@ -158,6 +158,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case modeAuthors:
 				return m.switchToMonths()
 			case modeCommits:
+				if m.showDiff {
+					m.showDiff = false
+					return m, nil
+				}
 				return m.switchToAuthors(m.currentMonth)
 			}
 			return m, tea.Quit
