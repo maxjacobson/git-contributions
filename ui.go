@@ -484,6 +484,7 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 // openForm opens the profile form for one contributor, prefilled from any
 // existing metadata.
 func (m model) openForm(author string) (tea.Model, tea.Cmd) {
+	m.currentAuthor = author
 	profile, found := m.metadata.Lookup(author)
 
 	team := textinput.New()
