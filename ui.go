@@ -80,6 +80,7 @@ func newModel(months []MonthSummary) model {
 	l.Title = "Months"
 	l.SetStatusBarItemName("month", "months")
 	l.SetShowStatusBar(true)
+	l.SetFilteringEnabled(false)
 
 	return model{months: months, list: l, mode: modeMonths}
 }
