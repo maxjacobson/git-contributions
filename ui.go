@@ -492,15 +492,15 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 func (m model) openForm(author string) (tea.Model, tea.Cmd) {
 	profile, found := m.metadata.Lookup(author)
 
-	note := textinput.New()
-	note.Placeholder = "note to self"
-	note.Width = 40
-	note.SetValue(profile.Note)
-
 	team := textinput.New()
 	team.Placeholder = "e.g. Checkout"
 	team.Width = 40
 	team.SetValue(profile.Team)
+
+	note := textinput.New()
+	note.Placeholder = "note to self"
+	note.Width = 40
+	note.SetValue(profile.Note)
 
 	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active || !found, knownTeams: m.knownTeams(), suggestionIndex: -1}
 	cmd := m.form.inputs[0].Focus()
@@ -536,7 +536,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.saveForm()
 		case "tab", "down":
-			if m.form.focus == 1 && len(m.form.knownTeams) > 0 {
+			if m.form.focus == 0 && len(m.form.knownTeams) > 0 {
 				if m.form.suggestionIndex < len(m.form.knownTeams) {
 					m.form.suggestionIndex++
 				}
@@ -546,7 +546,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.form.focus = (m.form.focus + 1) % 3
 			return m, m.focusFormField()
 		case "shift+tab", "up":
-			if m.form.focus == 1 && m.form.suggestionIndex >= 0 {
+			if m.form.focus == 0 && m.form.suggestionIndex >= 0 {
 				m.form.suggestionIndex--
 				m.applySuggestion()
 				return m, nil
@@ -565,7 +565,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.form.inputs {
 		if i == m.form.focus {
 			m.form.inputs[i], cmd = m.form.inputs[i].Update(msg)
-			if i == 1 {
+			if i == 0 {
 				m.form.suggestionIndex = -1
 			}
 		} else {
@@ -581,7 +581,7 @@ func (m *model) applySuggestion() {
 	if m.form.suggestionIndex < 0 || m.form.suggestionIndex >= len(m.form.knownTeams) {
 		return
 	}
-	m.form.inputs[1].SetValue(m.form.knownTeams[m.form.suggestionIndex])
+	m.form.inputs[0].SetValue(m.form.knownTeams[m.form.suggestionIndex])
 }
 
 // focusFormField focuses the input for the current form focus, blurring the
@@ -602,8 +602,8 @@ func (m *model) focusFormField() tea.Cmd {
 func (m model) saveForm() (tea.Model, tea.Cmd) {
 	previous, _ := m.metadata.Lookup(m.form.author)
 	profile := Profile{
-		Note:    strings.TrimSpace(m.form.inputs[0].Value()),
-		Team:    strings.TrimSpace(m.form.inputs[1].Value()),
+		Team:    strings.TrimSpace(m.form.inputs[0].Value()),
+		Note:    strings.TrimSpace(m.form.inputs[1].Value()),
 		Active:  m.form.active,
 		Aliases: previous.Aliases,
 	}
@@ -628,7 +628,7 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 func (m model) formView() string {
 	var b strings.Builder
 	b.WriteString(previewHeaderStyle.Render(m.form.author) + "\n\n")
-	labels := []string{"Note", "Team", "Active"}
+	labels := []string{"Team", "Note", "Active"}
 	for i := range labels {
 		cursor := "  "
 		if i == m.form.focus {
@@ -641,7 +641,7 @@ func (m model) formView() string {
 			b.WriteString(m.renderActiveRadio())
 		}
 		b.WriteString("\n")
-		if i == 1 && m.form.focus == 1 {
+		if i == 0 && m.form.focus == 0 {
 			b.WriteString(m.renderTeamSuggestions())
 		}
 	}
