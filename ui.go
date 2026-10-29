@@ -145,7 +145,7 @@ func (m model) switchToAuthors(summary MonthSummary) (tea.Model, tea.Cmd) {
 	for i, stats := range summary.Authors {
 		items[i] = authorItem{stats: stats, month: summary.Month}
 	}
-	m.list.Title = summary.Month
+	m.list.Title = monthLabel(summary.Month)
 	m.list.SetStatusBarItemName("author", "authors")
 	m.list.SetItems(items)
 	m.mode = modeAuthors
