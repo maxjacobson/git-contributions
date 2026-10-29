@@ -494,12 +494,7 @@ func (m model) openForm(author string) (tea.Model, tea.Cmd) {
 	team.Width = 40
 	team.SetValue(profile.Team)
 
-	note := textinput.New()
-	note.Placeholder = "note to self"
-	note.Width = 40
-	note.SetValue(profile.Note)
-
-	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active || !found, knownTeams: m.knownTeams(), suggestionIndex: -1}
+	m.form = form{author: author, inputs: []textinput.Model{team}, active: profile.Active || !found, knownTeams: m.knownTeams(), suggestionIndex: -1}
 	cmd := m.form.inputs[0].Focus()
 	m.mode = modeForm
 	return m, cmd
@@ -540,7 +535,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.applySuggestion()
 				return m, nil
 			}
-			m.form.focus = (m.form.focus + 1) % 3
+			m.form.focus = (m.form.focus + 1) % 2
 			return m, m.focusFormField()
 		case "shift+tab", "up":
 			if m.form.focus == 0 && m.form.suggestionIndex >= 0 {
@@ -548,10 +543,10 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.applySuggestion()
 				return m, nil
 			}
-			m.form.focus = (m.form.focus + 2) % 3
+			m.form.focus = (m.form.focus + 1) % 2
 			return m, m.focusFormField()
 		case " ", "left", "right", "h", "l":
-			if m.form.focus == 2 {
+			if m.form.focus == 1 {
 				m.form.active = !m.form.active
 				return m, nil
 			}
@@ -600,7 +595,6 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 	previous, _ := m.metadata.Lookup(m.form.author)
 	profile := Profile{
 		Team:    strings.TrimSpace(m.form.inputs[0].Value()),
-		Note:    strings.TrimSpace(m.form.inputs[1].Value()),
 		Active:  m.form.active,
 		Aliases: previous.Aliases,
 	}
@@ -625,7 +619,7 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 func (m model) formView() string {
 	var b strings.Builder
 	b.WriteString(previewHeaderStyle.Render(m.form.author) + "\n\n")
-	labels := []string{"Team", "Note", "Active"}
+	labels := []string{"Team", "Active"}
 	for i := range labels {
 		cursor := "  "
 		if i == m.form.focus {
@@ -737,9 +731,6 @@ func renderAuthorPreview(item authorItem) string {
 		}
 		if item.profile.Active {
 			fmt.Fprintf(&b, "%-18s %s\n", "Active", "yes")
-			if item.profile.Note != "" {
-				fmt.Fprintf(&b, "%-18s %s\n", "Note", item.profile.Note)
-			}
 		}
 		fmt.Fprint(&b, "\n")
 	}

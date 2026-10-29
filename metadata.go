@@ -7,7 +7,6 @@ import (
 
 // Profile is user-maintained metadata about one contributor.
 type Profile struct {
-	Note    string   `json:"note,omitempty"`
 	Active  bool     `json:"active"`
 	Team    string   `json:"team,omitempty"`
 	Aliases []string `json:"aliases,omitempty"`
