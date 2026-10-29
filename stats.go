@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -34,9 +35,10 @@ type AuthorStats struct {
 	Deletions  int
 }
 
-// MonthSummary describes one month's contributions.
-type MonthSummary struct {
-	Month        string
+// PeriodSummary describes one period's contributions: a month ("2024-03")
+// or a year ("2024").
+type PeriodSummary struct {
+	Period       string
 	TotalCommits int
 	Authors      []AuthorStats // sorted by commit count desc, then name
 }
@@ -72,12 +74,32 @@ func Mean(numbers []int) int {
 	return Sum(numbers) / len(numbers)
 }
 
+// comma groups a number's digits in thousands, eg 1234567 as "1,234,567".
+func comma(n int) string {
+	negative := n < 0
+	if negative {
+		n = -n
+	}
+	s := strconv.Itoa(n)
+	var groups []string
+	for len(s) > 3 {
+		groups = append([]string{s[len(s)-3:]}, groups...)
+		s = s[:len(s)-3]
+	}
+	groups = append([]string{s}, groups...)
+	out := strings.Join(groups, ",")
+	if negative {
+		out = "-" + out
+	}
+	return out
+}
+
 // WithUnit pluralizes a count with its unit.
 func WithUnit(count int, unit string) string {
 	if count == 1 {
-		return fmt.Sprintf("%d %s", count, unit)
+		return fmt.Sprintf("%s %s", comma(count), unit)
 	}
-	return fmt.Sprintf("%d %ss", count, unit)
+	return fmt.Sprintf("%s %ss", comma(count), unit)
 }
 
 // TeamSummary pools one team's contributions in one month.
@@ -132,24 +154,48 @@ func SummarizeTeams(commits []Commit, teamOf func(string) string) []TeamSummary 
 
 // SummarizeMonths groups commits by month, newest first, with each month's
 // authors sorted by commit count (descending), then by name.
-func SummarizeMonths(commits []Commit) []MonthSummary {
-	byMonth := map[string][]Commit{}
+func SummarizeMonths(commits []Commit) []PeriodSummary {
+	return summarizePeriods(commits, func(c Commit) string { return c.Month })
+}
+
+// SummarizeYears groups commits by year, newest first, like SummarizeMonths.
+func SummarizeYears(commits []Commit) []PeriodSummary {
+	return summarizePeriods(commits, func(c Commit) string { return c.Month[:4] })
+}
+
+// isYear reports whether a period is a year ("2024") rather than a month
+// ("2024-03").
+func isYear(period string) bool {
+	return len(period) == 4
+}
+
+// inPeriod reports whether a commit falls within the period.
+func inPeriod(c Commit, period string) bool {
+	if isYear(period) {
+		return strings.HasPrefix(c.Month, period)
+	}
+	return c.Month == period
+}
+
+func summarizePeriods(commits []Commit, periodOf func(Commit) string) []PeriodSummary {
+	byPeriod := map[string][]Commit{}
 	for _, c := range commits {
-		byMonth[c.Month] = append(byMonth[c.Month], c)
+		period := periodOf(c)
+		byPeriod[period] = append(byPeriod[period], c)
 	}
 
-	months := make([]string, 0, len(byMonth))
-	for month := range byMonth {
-		months = append(months, month)
+	periods := make([]string, 0, len(byPeriod))
+	for period := range byPeriod {
+		periods = append(periods, period)
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(months)))
+	sort.Sort(sort.Reverse(sort.StringSlice(periods)))
 
-	summaries := make([]MonthSummary, 0, len(months))
-	for _, month := range months {
-		summaries = append(summaries, MonthSummary{
-			Month:        month,
-			TotalCommits: len(byMonth[month]),
-			Authors:      SummarizeAuthors(byMonth[month]),
+	summaries := make([]PeriodSummary, 0, len(periods))
+	for _, period := range periods {
+		summaries = append(summaries, PeriodSummary{
+			Period:       period,
+			TotalCommits: len(byPeriod[period]),
+			Authors:      SummarizeAuthors(byPeriod[period]),
 		})
 	}
 	return summaries

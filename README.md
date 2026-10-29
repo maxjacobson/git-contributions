@@ -9,11 +9,14 @@ direction. See `AGENTS.md` for the working notes.
 
 ## What it does
 
-Three levels, each with a preview pane on the right:
+Two top-level period views, months (default) and years, switched with `y`
+and `m`; each period drills down through the same three levels, each with a
+preview pane on the right. A breadcrumb across the top shows where you are,
+down to the current selection (`Years > 2026 > Payments Team`):
 
-1. **Months**, newest first, with the contributors of the focused month and
-   their commit counts, busiest first
-2. **Contributors** of the selected month, with commit metadata: merge and
+1. **Months** (or **Years**), newest first, with the contributors of the
+   focused period and their commit counts, busiest first
+2. **Contributors** of the selected period, with commit metadata: merge and
    non-merge commit counts, then median and mean commit size (insertions
    plus deletions, floored), total insertions and deletions
 3. **Commits** of the selected contributor, newest first; `enter` swaps the
@@ -87,6 +90,10 @@ Flags:
   shown with `enter`
 - `enter` — drill into the selected month or contributor; in the commit
   view, show or hide the commit's colorized diff
+- `y` — switch the top-level list to years (works from the month,
+  contributor, and team views)
+- `m` — switch back to months (works from the year, contributor, and team
+  views)
 - `e` — in the contributor view, edit the selected contributor's profile
   (team, active) in a form; saved to the repo-local metadata file
 - `t` — in the contributor view, toggle between people and teams

@@ -23,6 +23,7 @@ type mode int
 
 const (
 	modeMonths mode = iota
+	modeYears
 	modeAuthors
 	modeTeams
 	modeCommits
@@ -58,19 +59,19 @@ var (
 			Foreground(lipgloss.Color("196"))
 )
 
-type monthItem struct {
-	summary MonthSummary
+type periodItem struct {
+	summary PeriodSummary
 }
 
-func (m monthItem) Title() string {
-	return monthLabel(m.summary.Month)
+func (p periodItem) Title() string {
+	return periodLabel(p.summary.Period)
 }
 
-func (m monthItem) Description() string {
-	return fmt.Sprintf("%d commits by %d authors", m.summary.TotalCommits, len(m.summary.Authors))
+func (p periodItem) Description() string {
+	return fmt.Sprintf("%s commits by %d authors", comma(p.summary.TotalCommits), len(p.summary.Authors))
 }
 
-func (m monthItem) FilterValue() string { return m.summary.Month }
+func (p periodItem) FilterValue() string { return p.summary.Period }
 
 type authorItem struct {
 	stats   AuthorStats
@@ -152,7 +153,8 @@ func (t teamItem) FilterValue() string { return t.summary.Team }
 func (c commitItem) FilterValue() string { return c.commit.Subject }
 
 type model struct {
-	months        []MonthSummary
+	months        []PeriodSummary
+	years         []PeriodSummary
 	commits       []Commit
 	list          list.Model
 	diffViewport  viewport.Model
@@ -163,7 +165,7 @@ type model struct {
 	ready         bool
 	height        int
 	width         int
-	currentMonth  string
+	currentPeriod string
 	currentAuthor string
 	currentTeam   string
 	form          form
@@ -172,20 +174,20 @@ type model struct {
 	metadata      Metadata
 }
 
-func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string, metadata Metadata) model {
+func newModel(commits []Commit, months []PeriodSummary, repo *Repo, slug string, metadata Metadata) model {
 	items := make([]list.Item, len(months))
 	for i, summary := range months {
-		items[i] = monthItem{summary: summary}
+		items[i] = periodItem{summary: summary}
 	}
 
 	l := list.New(items, list.NewDefaultDelegate(), listWidth, 20)
-	l.Title = "Months"
 	l.SetStatusBarItemName("month", "months")
 	l.SetShowStatusBar(true)
+	l.SetShowTitle(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 
-	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug, metadata: metadata}
+	return model{commits: commits, months: months, years: SummarizeYears(commits), list: l, mode: modeMonths, repo: repo, slug: slug, metadata: metadata}
 }
 
 func (m model) Init() tea.Cmd {
@@ -198,7 +200,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.height = msg.Height
 		m.width = msg.Width
-		m.list.SetSize(msg.Width/3, msg.Height-1)
+		m.list.SetSize(msg.Width/3, msg.Height-2)
 		m.resizeDiff()
 		if m.mode == modeCommits && m.showDiff && m.diffHash != "" {
 			m.loadDiff(m.diffHash)
@@ -221,32 +223,42 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc", "q":
 			switch m.mode {
 			case modeAuthors:
-				return m.switchToMonths()
+				return m.switchToPeriod(m.currentPeriod)
 			case modeTeams:
-				return m.switchToAuthors(m.currentMonth)
+				return m.switchToAuthors(m.currentPeriod)
 			case modeCommits:
 				if m.showDiff {
 					m.showDiff = false
 					return m, nil
 				}
 				if m.currentTeam != "" {
-					return m.switchToTeams(m.currentMonth)
+					return m.switchToTeams(m.currentPeriod)
 				}
-				return m.switchToAuthors(m.currentMonth)
+				return m.switchToAuthors(m.currentPeriod)
 			}
 			return m, tea.Quit
 		case "t":
 			switch m.mode {
 			case modeAuthors:
-				return m.switchToTeams(m.currentMonth)
+				return m.switchToTeams(m.currentPeriod)
 			case modeTeams:
-				return m.switchToAuthors(m.currentMonth)
+				return m.switchToAuthors(m.currentPeriod)
+			}
+		case "y":
+			switch m.mode {
+			case modeMonths, modeAuthors, modeTeams:
+				return m.switchToYears()
+			}
+		case "m":
+			switch m.mode {
+			case modeYears, modeAuthors, modeTeams:
+				return m.switchToMonths()
 			}
 		case "enter":
 			switch m.mode {
-			case modeMonths:
-				if summary, ok := m.selectedMonth(); ok {
-					return m.switchToAuthors(summary.Month)
+			case modeMonths, modeYears:
+				if summary, ok := m.selectedPeriod(); ok {
+					return m.switchToAuthors(summary.Period)
 				}
 			case modeAuthors:
 				if item, ok := m.list.SelectedItem().(authorItem); ok {
@@ -318,9 +330,9 @@ func (m model) diffPaneWidth() int {
 }
 
 // diffPaneHeight is the height available for the diff viewport, leaving room
-// for the footer, the pane border and padding, and the commit subject header.
+// for the breadcrumb bar, the footer, the pane border and padding.
 func (m model) diffPaneHeight() int {
-	h := m.height - 7
+	h := m.height - 6
 	if h < 1 {
 		h = 1
 	}
@@ -383,36 +395,54 @@ func fillLineBackground(line string, width int) string {
 	return line
 }
 
-func (m model) selectedMonth() (MonthSummary, bool) {
-	item, ok := m.list.SelectedItem().(monthItem)
+func (m model) selectedPeriod() (PeriodSummary, bool) {
+	item, ok := m.list.SelectedItem().(periodItem)
 	if !ok {
-		return MonthSummary{}, false
+		return PeriodSummary{}, false
 	}
 	return item.summary, true
 }
 
 func (m model) switchToMonths() (tea.Model, tea.Cmd) {
-	items := make([]list.Item, len(m.months))
+	return m.switchToPeriodList(m.months, modeMonths, "month", "months")
+}
+
+func (m model) switchToYears() (tea.Model, tea.Cmd) {
+	return m.switchToPeriodList(m.years, modeYears, "year", "years")
+}
+
+func (m model) switchToPeriodList(summaries []PeriodSummary, target mode, singular, plural string) (tea.Model, tea.Cmd) {
+	items := make([]list.Item, len(summaries))
 	index := 0
-	for i, summary := range m.months {
-		items[i] = monthItem{summary: summary}
-		if summary.Month == m.currentMonth {
+	for i, summary := range summaries {
+		items[i] = periodItem{summary: summary}
+		if summary.Period == m.currentPeriod {
 			index = i
 		}
 	}
-	m.list.Title = "Months"
-	m.list.SetStatusBarItemName("month", "months")
+	m.list.SetStatusBarItemName(singular, plural)
 	m.list.SetItems(items)
 	m.list.Select(index)
-	m.mode = modeMonths
+	m.mode = target
 	return m, nil
 }
 
-func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
-	m.currentMonth = month
+func (m model) switchToPeriod(period string) (tea.Model, tea.Cmd) {
+	if isYear(period) {
+		return m.switchToYears()
+	}
+	return m.switchToMonths()
+}
+
+func (m model) switchToAuthors(period string) (tea.Model, tea.Cmd) {
+	m.currentPeriod = period
 	m.currentTeam = ""
-	for _, summary := range m.months {
-		if summary.Month != month {
+	summaries := m.months
+	if isYear(period) {
+		summaries = m.years
+	}
+	for _, summary := range summaries {
+		if summary.Period != period {
 			continue
 		}
 		items := make([]list.Item, len(summary.Authors))
@@ -424,7 +454,6 @@ func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 				index = i
 			}
 		}
-		m.list.Title = monthLabel(month)
 		m.list.SetStatusBarItemName("author", "authors")
 		m.list.SetItems(items)
 		m.list.Select(index)
@@ -440,22 +469,21 @@ func (m model) teamOf(author string) string {
 	return profile.Team
 }
 
-func (m model) switchToTeams(month string) (tea.Model, tea.Cmd) {
-	m.currentMonth = month
+func (m model) switchToTeams(period string) (tea.Model, tea.Cmd) {
+	m.currentPeriod = period
 	m.currentTeam = ""
 
-	var monthCommits []Commit
+	var periodCommits []Commit
 	for _, c := range m.commits {
-		if c.Month == month {
-			monthCommits = append(monthCommits, c)
+		if inPeriod(c, period) {
+			periodCommits = append(periodCommits, c)
 		}
 	}
-	teams := SummarizeTeams(monthCommits, m.teamOf)
+	teams := SummarizeTeams(periodCommits, m.teamOf)
 	items := make([]list.Item, len(teams))
 	for i, summary := range teams {
 		items[i] = teamItem{summary: summary}
 	}
-	m.list.Title = monthLabel(month)
 	m.list.SetStatusBarItemName("team", "teams")
 	m.list.SetItems(items)
 	m.list.Select(0)
@@ -469,19 +497,84 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 	var items []list.Item
 	for _, c := range m.commits {
 		inTeam := m.teamOf(c.Author) == team || (team == "(no team)" && m.teamOf(c.Author) == "")
-		if c.Month == m.currentMonth && inTeam {
+		if inPeriod(c, m.currentPeriod) && inTeam {
 			items = append(items, commitItem{commit: c, showAuthor: true})
 		}
 	}
 	if items == nil {
 		items = []list.Item{}
 	}
-	m.list.Title = team
 	m.list.SetStatusBarItemName("commit", "commits")
 	m.list.SetItems(items)
 	m.list.Select(0)
 	m.mode = modeCommits
 	return m, nil
+}
+
+// topPeriod names the top-level list a period belongs to.
+func topPeriod(period string) string {
+	if isYear(period) {
+		return "Years"
+	}
+	return "Months"
+}
+
+// breadcrumbParts describes the path to the current view, ending with the
+// current selection.
+func (m model) breadcrumbParts() []string {
+	var parts []string
+	switch m.mode {
+	case modeMonths, modeYears:
+		parts = append(parts, topPeriodLabel(m.mode))
+		if summary, ok := m.selectedPeriod(); ok {
+			parts = append(parts, periodLabel(summary.Period))
+		}
+	case modeAuthors:
+		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod))
+		if item, ok := m.list.SelectedItem().(authorItem); ok {
+			parts = append(parts, item.stats.Author)
+		}
+	case modeTeams:
+		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod))
+		if item, ok := m.list.SelectedItem().(teamItem); ok {
+			parts = append(parts, item.summary.Team)
+		}
+	case modeCommits:
+		leaf := m.currentAuthor
+		if m.currentTeam != "" {
+			leaf = m.currentTeam
+		}
+		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod), leaf)
+		if item, ok := m.list.SelectedItem().(commitItem); ok {
+			parts = append(parts, ansi.Truncate(item.Title(), 60, "…"))
+		}
+	}
+	return parts
+}
+
+// topPeriodLabel names the top-level list for a mode.
+func topPeriodLabel(m mode) string {
+	if m == modeYears {
+		return "Years"
+	}
+	return "Months"
+}
+
+// breadcrumbBar renders the breadcrumb across the top of the screen.
+func (m model) breadcrumbBar() string {
+	parts := m.breadcrumbParts()
+	var b strings.Builder
+	for i, part := range parts {
+		if i > 0 {
+			b.WriteString(footerStyle.Render(" > "))
+		}
+		if i == len(parts)-1 {
+			b.WriteString(titleStyle.Render(part))
+		} else {
+			b.WriteString(part)
+		}
+	}
+	return b.String()
 }
 
 // openForm opens the profile form for one contributor, prefilled from any
@@ -525,7 +618,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			return m.switchToAuthors(m.currentMonth)
+			return m.switchToAuthors(m.currentPeriod)
 		case "enter":
 			return m.saveForm()
 		case "tab":
@@ -619,7 +712,7 @@ func (m model) saveForm() (tea.Model, tea.Cmd) {
 		m.form.errorMsg = err.Error()
 		return m, nil
 	}
-	return m.switchToAuthors(m.currentMonth)
+	return m.switchToAuthors(m.currentPeriod)
 }
 
 // formView renders the profile form, centered.
@@ -694,14 +787,13 @@ func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
 
 	var items []list.Item
 	for _, c := range m.commits {
-		if c.Month == m.currentMonth && c.Author == author {
+		if inPeriod(c, m.currentPeriod) && c.Author == author {
 			items = append(items, commitItem{commit: c})
 		}
 	}
 	if items == nil {
 		items = []list.Item{}
 	}
-	m.list.Title = author
 	m.list.SetStatusBarItemName("commit", "commits")
 	m.list.SetItems(items)
 	m.list.Select(0)
@@ -718,12 +810,20 @@ func monthLabel(month string) string {
 	return t.Format("January 2006")
 }
 
-// renderMonthPreview is the contributor list for a month, busiest first.
-func renderMonthPreview(summary MonthSummary) string {
+// periodLabel titles a list by its period: "March 2024" or "2024".
+func periodLabel(period string) string {
+	if isYear(period) {
+		return period
+	}
+	return monthLabel(period)
+}
+
+// renderPeriodPreview is the contributor list for a period, busiest first.
+func renderPeriodPreview(summary PeriodSummary) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d commits by %d authors\n\n", summary.TotalCommits, len(summary.Authors))
+	fmt.Fprintf(&b, "%s commits by %d authors\n\n", comma(summary.TotalCommits), len(summary.Authors))
 	for _, stats := range summary.Authors {
-		fmt.Fprintf(&b, "%-24s %4d\n", stats.Author, stats.Commits)
+		fmt.Fprintf(&b, "%-24s %6s\n", stats.Author, comma(stats.Commits))
 	}
 	return b.String()
 }
@@ -765,7 +865,7 @@ func renderStatsTable(stats AuthorStats) string {
 func renderTeamPreview(item teamItem) string {
 	var b strings.Builder
 	for _, member := range item.summary.Members {
-		fmt.Fprintf(&b, "%-24s %4d\n", member.Author, member.Commits)
+		fmt.Fprintf(&b, "%-24s %6s\n", member.Author, comma(member.Commits))
 	}
 	b.WriteString("\n")
 	b.WriteString(renderStatsTable(item.summary.Stats))
@@ -812,7 +912,9 @@ func (m model) footer() string {
 	keys := []string{"↑/↓ move"}
 	switch m.mode {
 	case modeMonths:
-		keys = append(keys, "enter contributors", "esc/q quit")
+		keys = append(keys, "y years", "enter contributors", "esc/q quit")
+	case modeYears:
+		keys = append(keys, "m months", "enter contributors", "esc/q quit")
 	case modeAuthors:
 		keys = append(keys, "enter commits", "t teams", "esc/q back", "ctrl+c quit")
 	case modeTeams:
@@ -840,49 +942,48 @@ func (m model) View() string {
 
 	var preview string
 	switch m.mode {
-	case modeMonths:
-		if summary, ok := m.selectedMonth(); ok {
-			preview = previewHeaderStyle.Render(monthLabel(summary.Month)) + "\n" + renderMonthPreview(summary)
+	case modeMonths, modeYears:
+		if summary, ok := m.selectedPeriod(); ok {
+			preview = renderPeriodPreview(summary)
 		} else {
-			preview = "No months with commits."
+			preview = "No commits in this period."
 		}
 	case modeAuthors:
 		if item, ok := m.list.SelectedItem().(authorItem); ok {
-			preview = previewHeaderStyle.Render(item.stats.Author) + "\n" + renderAuthorPreview(item)
+			preview = renderAuthorPreview(item)
 		} else {
 			preview = "No contributors this month."
 		}
 	case modeTeams:
 		if item, ok := m.list.SelectedItem().(teamItem); ok {
-			preview = previewHeaderStyle.Render(item.summary.Team) + "\n" + renderTeamPreview(item)
+			preview = renderTeamPreview(item)
 		} else {
 			preview = "No teams with commits this month."
 		}
 	case modeCommits:
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
-			header := previewHeaderStyle.Render(item.commit.Subject)
 			if m.showDiff {
-				preview = diffPaneStyle.Render(header + "\n" + m.diffViewport.View())
+				preview = diffPaneStyle.Render(m.diffViewport.View())
 			} else {
-				preview = previewStyle.Render(header + "\n" + renderCommitPreview(item))
+				preview = previewStyle.Render(renderCommitPreview(item))
 			}
 		} else {
 			preview = "No commits this month."
 		}
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview)) + "\n" + m.footer()
+	return m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview)) + "\n" + m.footer()
 }
 
 // previewPane pads the preview and clamps it to the terminal height, so a
-// month with many contributors cannot push the header off the top of the
+// month with many contributors cannot push the footer off the top of the
 // screen.
 func (m model) previewPane(preview string) string {
-	return lipgloss.NewStyle().MaxHeight(m.height - 1).Render(previewStyle.Render(preview))
+	return lipgloss.NewStyle().MaxHeight(m.height - 2).Render(previewStyle.Render(preview))
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
-func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string, metadata Metadata) error {
+func RunUI(w io.Writer, commits []Commit, months []PeriodSummary, repo *Repo, slug string, metadata Metadata) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
 		return nil

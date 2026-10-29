@@ -55,12 +55,32 @@ func TestSum(t *testing.T) {
 	}
 }
 
+func TestComma(t *testing.T) {
+	for _, tc := range []struct {
+		n    int
+		want string
+	}{
+		{0, "0"},
+		{999, "999"},
+		{1000, "1,000"},
+		{1234567, "1,234,567"},
+		{-1234, "-1,234"},
+	} {
+		if got := comma(tc.n); got != tc.want {
+			t.Errorf("comma(%d) = %q, want %q", tc.n, got, tc.want)
+		}
+	}
+}
+
 func TestWithUnit(t *testing.T) {
 	if got := WithUnit(1, "line"); got != "1 line" {
 		t.Errorf("got %q, want %q", got, "1 line")
 	}
 	if got := WithUnit(2, "line"); got != "2 lines" {
 		t.Errorf("got %q, want %q", got, "2 lines")
+	}
+	if got := WithUnit(23456, "line"); got != "23,456 lines" {
+		t.Errorf("got %q, want %q", got, "23,456 lines")
 	}
 }
 
@@ -128,7 +148,7 @@ func TestSummarizeMonths(t *testing.T) {
 	if len(months) != 2 {
 		t.Fatalf("got %d months, want 2", len(months))
 	}
-	if months[0].Month != "2024-03" || months[1].Month != "2024-02" {
+	if months[0].Period != "2024-03" || months[1].Period != "2024-02" {
 		t.Errorf("months not sorted newest first: %v", months)
 	}
 	if months[0].TotalCommits != 2 {
@@ -136,6 +156,38 @@ func TestSummarizeMonths(t *testing.T) {
 	}
 	if months[0].Authors[0].Author != "Alice" || months[0].Authors[0].Commits != 1 {
 		t.Errorf("tie between Bob and Alice did not break alphabetically: %+v", months[0].Authors)
+	}
+}
+
+func TestSummarizeYears(t *testing.T) {
+	commits := []Commit{
+		{Month: "2023-11", Author: "Alice"},
+		{Month: "2024-01", Author: "Bob"},
+		{Month: "2024-06", Author: "Alice", Insertions: 3},
+	}
+
+	years := SummarizeYears(commits)
+	if len(years) != 2 {
+		t.Fatalf("got %d years, want 2", len(years))
+	}
+	if years[0].Period != "2024" || years[1].Period != "2023" {
+		t.Errorf("years not sorted newest first: %v", years)
+	}
+	if years[0].TotalCommits != 2 {
+		t.Errorf("TotalCommits = %d, want 2", years[0].TotalCommits)
+	}
+	if years[0].Authors[0].Author != "Alice" || years[0].Authors[0].Commits != 1 {
+		t.Errorf("tie between Bob and Alice did not break alphabetically: %+v", years[0].Authors)
+	}
+}
+
+func TestInPeriod(t *testing.T) {
+	commit := Commit{Month: "2024-03"}
+	if !inPeriod(commit, "2024-03") || !inPeriod(commit, "2024") {
+		t.Errorf("commit should match its month and year")
+	}
+	if inPeriod(commit, "2024-04") || inPeriod(commit, "2023") {
+		t.Errorf("commit should not match other periods")
 	}
 }
 

@@ -6,13 +6,17 @@ bubbles, lipgloss).
 
 ## What it does
 
-Three drill-down levels, each with a preview pane on the right:
+Two top-level period views, months (default) and years, switched with `y`
+and `m`. Either period drills down through three levels, each with a preview
+pane on the right. A breadcrumb bar spans the top of the screen instead of a
+list title or preview header; its leaf is the current selection, so it
+changes as the cursor moves (eg "Years > 2026 > Payments Team"):
 
-1. Months, newest first; the preview lists the month's contributors with
-   commit counts, busiest first
-2. Contributors of the selected month; the preview shows merge and non-merge
-   commit counts, then median and mean commit size (insertions plus
-   deletions, floored), total insertions and deletions
+1. Months or years, newest first; the preview lists the period's
+   contributors with commit counts, busiest first
+2. Contributors of the selected period; the preview shows merge and
+   non-merge commit counts, then median and mean commit size (insertions
+   plus deletions, floored), total insertions and deletions
 3. Commits of the selected contributor, newest first; the preview shows
    commit metadata, and `enter` swaps it for the commit's own colorized
    rendering in a bordered, scrollable pane; `o` opens the commit on GitHub
@@ -33,6 +37,9 @@ Behavioral decisions worth remembering:
   `mailmap.file` passed explicitly, since git does not discover `.mailmap`
   when `--git-dir` points inside `.jj`
 - Dependabot commits are excluded by default; `--include-dependabot` opts in
+- The period kind (month vs year) is inferred from the period string's
+  length ("2024-03" vs "2024"), so esc returns to whichever list the user
+  drilled out of without extra state
 - Cursor position is restored when backing out; drilling in starts at the
   top (bubbles list preserves its index across SetItems, so every
   transition selects explicitly)
@@ -80,7 +87,8 @@ tools and display it:
 
 ## Structure
 
-- `stats.go` — Commit/AuthorStats/MonthSummary types, aggregation, median/mean
+- `stats.go` — Commit/AuthorStats/PeriodSummary types, month and year
+  aggregation, median/mean
 - `metadata.go` — contributor profiles: load, aliases, lookup
 - `parse.go` — parses the `git log --shortstat` output format
 - `repo.go` — jj vs git detection, running git/jj, GitHub slug from origin
