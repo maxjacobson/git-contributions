@@ -8,8 +8,10 @@ import (
 	"strings"
 )
 
-// headerRe matches the log format line for one commit: "2024-03;;;Alice;;;".
-var headerRe = regexp.MustCompile(`^(\d{4}-\d{2});;;(.*);;;$`)
+// headerRe matches the log format line for one commit:
+// "2024-03;;;Alice;;;abc123 def456", where the parents are empty for root
+// commits.
+var headerRe = regexp.MustCompile(`^(\d{4}-\d{2});;;(.*);;;(.*)$`)
 
 var (
 	insertionsRe = regexp.MustCompile(`(\d+) insertion`)
@@ -17,23 +19,31 @@ var (
 )
 
 // ParseLog parses the output of
-// git log --pretty=tformat:"%ad;;;%aN;;;" --date=format:"%Y-%m" --shortstat
-// into commits. A commit with no changes has an empty stat section.
+// git log --pretty=tformat:"%ad;;;%aN;;;%P" --date=format:"%Y-%m" --shortstat
+// into commits. Commits with no stat line and fewer than two parents are
+// skipped as empty, since a merge commit has no stat but is a real commit,
+// while an empty commit is not a contribution.
 func ParseLog(output string) ([]Commit, error) {
 	var commits []Commit
 	current := Commit{}
 	started := false
+	hasStat := false
+
+	flush := func() {
+		if started && (hasStat || parentCount(current) >= 2) {
+			commits = append(commits, current)
+		}
+	}
 
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := scanner.Text()
 
 		if matches := headerRe.FindStringSubmatch(line); matches != nil {
-			if started {
-				commits = append(commits, current)
-			}
-			current = Commit{Month: matches[1], Author: matches[2]}
+			flush()
+			current = Commit{Month: matches[1], Author: matches[2], Parents: matches[3]}
 			started = true
+			hasStat = false
 			continue
 		}
 
@@ -49,14 +59,17 @@ func ParseLog(output string) ([]Commit, error) {
 		}
 		current.Insertions = countMatches(insertionsRe, line)
 		current.Deletions = countMatches(deletionsRe, line)
+		hasStat = true
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
-	if started {
-		commits = append(commits, current)
-	}
+	flush()
 	return commits, nil
+}
+
+func parentCount(c Commit) int {
+	return len(strings.Fields(c.Parents))
 }
 
 // countMatches returns the first captured number, or 0 if there is none,

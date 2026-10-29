@@ -10,6 +10,7 @@ import (
 type Commit struct {
 	Month      string // "2024-03"
 	Author     string
+	Parents    string // space-separated parent hashes, empty for root commits
 	Insertions int
 	Deletions  int
 }
