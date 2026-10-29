@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -130,11 +131,13 @@ func dayLabel(day string) string {
 }
 
 type form struct {
-	author   string
-	inputs   []textinput.Model
-	focus    int
-	active   bool
-	errorMsg string
+	author          string
+	inputs          []textinput.Model
+	focus           int
+	active          bool
+	knownTeams      []string
+	suggestionIndex int
+	errorMsg        string
 }
 
 type teamItem struct {
@@ -499,10 +502,27 @@ func (m model) openForm(author string) (tea.Model, tea.Cmd) {
 	team.Width = 40
 	team.SetValue(profile.Team)
 
-	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active || !found}
+	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active || !found, knownTeams: m.knownTeams(), suggestionIndex: -1}
 	cmd := m.form.inputs[0].Focus()
 	m.mode = modeForm
 	return m, cmd
+}
+
+// knownTeams collects the distinct teams already present in the metadata,
+// sorted.
+func (m model) knownTeams() []string {
+	set := map[string]bool{}
+	for _, profile := range m.metadata {
+		if profile.Team != "" {
+			set[profile.Team] = true
+		}
+	}
+	teams := make([]string, 0, len(set))
+	for team := range set {
+		teams = append(teams, team)
+	}
+	sort.Strings(teams)
+	return teams
 }
 
 // updateForm routes keys inside the profile form.
@@ -533,11 +553,23 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	for i := range m.form.inputs {
 		if i == m.form.focus {
 			m.form.inputs[i], cmd = m.form.inputs[i].Update(msg)
+			if i == 1 {
+				m.form.suggestionIndex = -1
+			}
 		} else {
 			m.form.inputs[i].Blur()
 		}
 	}
 	return m, cmd
+}
+
+// applySuggestion fills the team input with the highlighted suggestion,
+// unless the highlight is on the "new team" row.
+func (m *model) applySuggestion() {
+	if m.form.suggestionIndex < 0 || m.form.suggestionIndex >= len(m.form.knownTeams) {
+		return
+	}
+	m.form.inputs[1].SetValue(m.form.knownTeams[m.form.suggestionIndex])
 }
 
 // focusFormField focuses the input for the current form focus, blurring the
@@ -597,6 +629,9 @@ func (m model) formView() string {
 			b.WriteString(m.renderActiveRadio())
 		}
 		b.WriteString("\n")
+		if i == 1 && m.form.focus == 1 {
+			b.WriteString(m.renderTeamSuggestions())
+		}
 	}
 	if m.form.errorMsg != "" {
 		b.WriteString("\n" + errorStyle.Render(m.form.errorMsg) + "\n")
@@ -604,6 +639,27 @@ func (m model) formView() string {
 	b.WriteString("\n" + footerStyle.Render("enter save · esc cancel · tab next field · space toggle active"))
 	box := formStyle.Render(strings.TrimSuffix(b.String(), "\n"))
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
+}
+
+// renderTeamSuggestions lists the known teams plus a row for naming a new
+// one, with the highlighted row marked.
+func (m model) renderTeamSuggestions() string {
+	chosen := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("39"))
+	indent := "          "
+	var b strings.Builder
+	for i, team := range m.form.knownTeams {
+		if i == m.form.suggestionIndex {
+			b.WriteString(indent + chosen.Render("> "+team) + "\n")
+		} else {
+			b.WriteString(indent + "  " + footerStyle.Render(team) + "\n")
+		}
+	}
+	if len(m.form.knownTeams) == m.form.suggestionIndex {
+		b.WriteString(indent + chosen.Render("> (new team…)") + "\n")
+	} else {
+		b.WriteString(indent + "  " + footerStyle.Render("(new team…)") + "\n")
+	}
+	return b.String()
 }
 
 // renderActiveRadio renders the Active field's yes/no radio pair, with the
