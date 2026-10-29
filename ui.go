@@ -536,9 +536,21 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			return m.saveForm()
 		case "tab", "down":
+			if m.form.focus == 1 && len(m.form.knownTeams) > 0 {
+				if m.form.suggestionIndex < len(m.form.knownTeams) {
+					m.form.suggestionIndex++
+				}
+				m.applySuggestion()
+				return m, nil
+			}
 			m.form.focus = (m.form.focus + 1) % 3
 			return m, m.focusFormField()
 		case "shift+tab", "up":
+			if m.form.focus == 1 && m.form.suggestionIndex >= 0 {
+				m.form.suggestionIndex--
+				m.applySuggestion()
+				return m, nil
+			}
 			m.form.focus = (m.form.focus + 2) % 3
 			return m, m.focusFormField()
 		case " ", "left", "right", "h", "l":
