@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -14,6 +15,9 @@ type Repo struct {
 	// Dir is the directory to run git from. For jj repos this is the
 	// workspace root.
 	Dir string
+	// MailmapFile is the project's .mailmap, passed explicitly because git
+	// does not discover it when --git-dir points inside .jj.
+	MailmapFile string
 	// StartCommit is the commit whose ancestry to walk. Empty means HEAD,
 	// the plain git behavior.
 	StartCommit string
@@ -31,6 +35,12 @@ func DetectRepo() *Repo {
 		repo := &Repo{GitDir: gitDir}
 		if out, err := exec.Command("jj", "workspace", "root").Output(); err == nil {
 			repo.Dir = strings.TrimSpace(string(out))
+			if repo.Dir != "" {
+				mailmap := repo.Dir + "/.mailmap"
+				if _, err := os.Stat(mailmap); err == nil {
+					repo.MailmapFile = mailmap
+				}
+			}
 		}
 		if out, err := exec.Command("jj", "log", "-r", "@", "--no-graph", "-T", `commit_id ++ "\n"`).Output(); err == nil {
 			repo.StartCommit = strings.TrimSpace(string(out))
@@ -43,6 +53,9 @@ func DetectRepo() *Repo {
 // LogOutput runs git log and returns its raw output.
 func (r *Repo) LogOutput() (string, error) {
 	args := []string{}
+	if r.MailmapFile != "" {
+		args = append(args, "-c", "mailmap.file="+r.MailmapFile)
+	}
 	if r.GitDir != "" {
 		args = append(args, "--git-dir", r.GitDir)
 	}
