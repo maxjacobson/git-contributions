@@ -18,7 +18,9 @@ browses commit history by month in a terminal UI.
 ## Commands
 
 - `just run` — run the CLI (default recipe)
-- `just test` — run tests (also: `gofmt -l .`, `go vet ./...`)
+- `just test` — run tests
+- `just fmt` — format with gofmt
+- `just lint` — go vet plus a gofmt check
 - `just build` — build into `bin/`
 - `just install` — install into `$GOPATH/bin`
 

@@ -38,6 +38,8 @@ A [justfile](justfile) wraps the common tasks:
 
 - `just run` — run the CLI (the default recipe)
 - `just test` — run the test suite
+- `just fmt` — format with gofmt
+- `just lint` — run go vet and check formatting
 - `just build` — build into `bin/`
 - `just install` — install into `$GOPATH/bin`
 
