@@ -115,13 +115,6 @@ func ParseGitHubSlug(url string) string {
 	return ""
 }
 
-// ShowCommand returns the command that shows one commit's diff in our own
-// always-paging less, since the user's pager may be "cat" (jj) or exit on
-// short diffs (less -F). Delta, when installed, provides the syntax
-// highlighting: it consumes the raw diff from either tool.
-
-// shellQuote single-quotes a string for safe use in a shell command.
-
 // MetadataFile returns the repo-local contributor metadata file location.
 func (r *Repo) MetadataFile() string {
 	if r.IsJJ {
