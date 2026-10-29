@@ -85,7 +85,16 @@ func (c commitItem) Description() string {
 	if parentCount(c.commit) >= 2 {
 		size = "merge"
 	}
-	return fmt.Sprintf("%s · %s", c.commit.Day[8:], size)
+	return fmt.Sprintf("%s · %s", dayLabel(c.commit.Day), size)
+}
+
+// dayLabel renders "2024-03-15" as "Mar 15".
+func dayLabel(day string) string {
+	t, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return day
+	}
+	return t.Format("Jan 2")
 }
 
 func (c commitItem) FilterValue() string { return c.commit.Subject }
