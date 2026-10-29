@@ -67,6 +67,7 @@ type model struct {
 	list   list.Model
 	mode   mode
 	ready  bool
+	height int
 }
 
 func newModel(months []MonthSummary) model {
@@ -91,7 +92,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.ready = true
-		m.list.SetSize(msg.Width/3, msg.Height-4)
+		m.height = msg.Height
+		m.list.SetSize(msg.Width/3, msg.Height)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -201,7 +203,14 @@ func (m model) View() string {
 		}
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), previewStyle.Render(preview))
+	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))
+}
+
+// previewPane pads the preview and clamps it to the terminal height, so a
+// month with many contributors cannot push the header off the top of the
+// screen.
+func (m model) previewPane(preview string) string {
+	return lipgloss.NewStyle().MaxHeight(m.height).Render(previewStyle.Render(preview))
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
