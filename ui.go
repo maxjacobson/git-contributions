@@ -75,6 +75,7 @@ func (m monthItem) FilterValue() string { return m.summary.Month }
 type authorItem struct {
 	stats   AuthorStats
 	profile Profile
+	found   bool
 }
 
 func (a authorItem) Title() string {
@@ -415,8 +416,8 @@ func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 		items := make([]list.Item, len(summary.Authors))
 		index := 0
 		for i, stats := range summary.Authors {
-			profile, _ := m.metadata.Lookup(stats.Author)
-			items[i] = authorItem{stats: stats, profile: profile}
+			profile, found := m.metadata.Lookup(stats.Author)
+			items[i] = authorItem{stats: stats, profile: profile, found: found}
 			if stats.Author == m.currentAuthor {
 				index = i
 			}
@@ -729,13 +730,15 @@ func renderMonthPreview(summary MonthSummary) string {
 // columns as the original script.
 func renderAuthorPreview(item authorItem) string {
 	var b strings.Builder
-	if item.profile.Team != "" || item.profile.Active {
+	if item.found {
 		if item.profile.Team != "" {
 			fmt.Fprintf(&b, "%-18s %s\n", "Team", item.profile.Team)
 		}
+		active := "no"
 		if item.profile.Active {
-			fmt.Fprintf(&b, "%-18s %s\n", "Active", "yes")
+			active = "yes"
 		}
+		fmt.Fprintf(&b, "%-18s %s\n", "Active", active)
 		fmt.Fprint(&b, "\n")
 	}
 	b.WriteString(renderStatsTable(item.stats))
