@@ -755,6 +755,9 @@ func (m model) View() string {
 	if !m.ready {
 		return "Loading..."
 	}
+	if m.mode == modeForm {
+		return m.formView()
+	}
 
 	var preview string
 	switch m.mode {
