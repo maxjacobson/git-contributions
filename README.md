@@ -6,11 +6,12 @@ When run from a git repo, it shows every month during which commits occurred.
 Focusing a month previews its contributors with commit counts, sorted by
 commit count. Drilling into a month, then into a contributor, lists that
 contributor's individual commits for the month, newest first, and entering a
-commit shows its date, hash, and size. The author view shows per-author
-metadata, split into merge commits and non-merge commits, followed by the
-non-merge size statistics: median and mean commit size, plus total insertions
-and deletions. Merge commits have no diff of their own, so they are excluded
-from the size statistics.
+commit shows its own colorized rendering (from `git show` or `jj show`) in a
+scrollable pane. The author view shows per-author metadata, split into merge
+commits and non-merge commits, followed by the non-merge size statistics:
+median and mean commit size, plus total insertions and deletions. Merge
+commits have no diff of their own, so they are excluded from the size
+statistics.
 
 Built with [charm](https://charm.sh) (bubbletea, bubbles, lipgloss).
 
@@ -41,9 +42,10 @@ Flags:
 
 - `↑`/`↓` — move through the list
 - `enter` — drill into the selected month, contributor, or commit
+- `j`/`k` — scroll the commit preview
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
-- `s` — in the commit view, show the diff with `git show` or `jj show`,
-  paged through `less` so even small diffs stay on screen
+- `s` — in the commit view, show the commit full screen with `git show` or
+  `jj show`, paged through `less` so even small diffs stay on screen
 - `esc` — back out (or quit from the month list)
 - `q` or `ctrl+c` — quit
 

@@ -162,6 +162,26 @@ func (r *Repo) LoadCommits() ([]Commit, error) {
 	return ParseLog(output)
 }
 
+// DiffOutput returns the colorized output of showing one commit, exactly as
+// git show or jj show would render it in a terminal.
+func (r *Repo) DiffOutput(hash string) (string, error) {
+	var cmd *exec.Cmd
+	if r.IsJJ {
+		cmd = exec.Command("jj", "show", "-r", hash, "--no-pager", "--color", "always")
+	} else {
+		cmd = exec.Command("git", r.gitArgs("--no-pager", "-c", "color.ui=always", "show", hash)...)
+	}
+	cmd.Dir = r.Dir
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("diff failed: %s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return "", fmt.Errorf("diff failed: %w", err)
+	}
+	return string(out), nil
+}
+
 // FilterDependabot drops commits by dependabot, matching the original
 // script's behavior.
 func FilterDependabot(commits []Commit) []Commit {

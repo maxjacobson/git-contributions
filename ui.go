@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 const listWidth = 32
@@ -103,9 +105,13 @@ type model struct {
 	months        []MonthSummary
 	commits       []Commit
 	list          list.Model
+	diffViewport  viewport.Model
+	diffWrapped   string
+	diffHash      string
 	mode          mode
 	ready         bool
 	height        int
+	width         int
 	currentMonth  string
 	currentAuthor string
 	repo          *Repo
@@ -137,7 +143,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.ready = true
 		m.height = msg.Height
+		m.width = msg.Width
 		m.list.SetSize(msg.Width/3, msg.Height-1)
+		m.resizeDiff()
 		return m, nil
 
 	case tea.KeyMsg:
@@ -179,11 +187,80 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+
+		if m.mode == modeCommits {
+			switch msg.String() {
+			case "j", "k", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
+				var cmd tea.Cmd
+				m.diffViewport, cmd = m.diffViewport.Update(msg)
+				return m, cmd
+			}
+		}
 	}
 
 	var cmd tea.Cmd
+	previousHash := m.selectedCommitHash()
 	m.list, cmd = m.list.Update(msg)
+	if m.mode == modeCommits {
+		if hash := m.selectedCommitHash(); hash != previousHash && hash != "" {
+			m.loadDiff(hash)
+		}
+	}
 	return m, cmd
+}
+
+// selectedCommitHash returns the hash of the selected commit in the commit
+// view, or an empty string elsewhere.
+func (m model) selectedCommitHash() string {
+	item, ok := m.list.SelectedItem().(commitItem)
+	if !ok {
+		return ""
+	}
+	return item.commit.Hash
+}
+
+// diffPaneWidth is the width available for diff text inside the preview.
+func (m model) diffPaneWidth() int {
+	return m.width - m.width/3 - 4
+}
+
+// diffPaneHeight is the height available for the diff viewport, leaving room
+// for the footer, the preview padding, and the commit subject header.
+func (m model) diffPaneHeight() int {
+	h := m.height - 5
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// resizeDiff refits the viewport and re-wraps the captured diff at the new
+// width.
+func (m *model) resizeDiff() {
+	m.diffViewport.Width = m.diffPaneWidth()
+	m.diffViewport.Height = m.diffPaneHeight()
+	m.diffViewport.SetContent(ansi.Hardwrap(m.diffWrapped, m.diffPaneWidth(), true))
+}
+
+// loadDiff captures the colorized output of showing one commit and puts it
+// in the viewport.
+func (m *model) loadDiff(hash string) {
+	m.diffHash = hash
+	m.diffWrapped = ""
+	if hash == "" {
+		m.resizeDiff()
+		return
+	}
+	output, err := m.repo.DiffOutput(hash)
+	if err != nil {
+		m.diffWrapped = "Could not load diff: " + err.Error()
+	} else if strings.TrimSpace(output) == "" {
+		m.diffWrapped = "No diff shown for merge commits."
+	} else {
+		m.diffWrapped = strings.TrimSuffix(output, "\n")
+	}
+	m.resizeDiff()
+	m.diffViewport.GotoTop()
 }
 
 func (m model) selectedMonth() (MonthSummary, bool) {
@@ -251,6 +328,9 @@ func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
 	m.list.SetItems(items)
 	m.list.Select(0)
 	m.mode = modeCommits
+	if item, ok := m.list.SelectedItem().(commitItem); ok {
+		m.loadDiff(item.commit.Hash)
+	}
 	return m, nil
 }
 
@@ -334,7 +414,7 @@ func (m model) footer() string {
 		if m.slug != "" {
 			keys = append(keys, "o open on github")
 		}
-		keys = append(keys, "s show", "esc back", "q quit")
+		keys = append(keys, "j/k scroll", "s show", "esc back", "q quit")
 	}
 	return footerStyle.Render(strings.Join(keys, " · "))
 }
@@ -360,7 +440,8 @@ func (m model) View() string {
 		}
 	case modeCommits:
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
-			preview = previewHeaderStyle.Render(item.commit.Subject) + "\n" + renderCommitPreview(item)
+			header := previewHeaderStyle.Render(item.commit.Subject)
+			preview = header + "\n" + m.diffViewport.View()
 		} else {
 			preview = "No commits this month."
 		}
