@@ -108,6 +108,7 @@ type model struct {
 	diffViewport  viewport.Model
 	diffWrapped   string
 	diffHash      string
+	showDiff      bool
 	mode          mode
 	ready         bool
 	height        int
@@ -183,12 +184,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "s":
 			if m.mode == modeCommits {
 				if item, ok := m.list.SelectedItem().(commitItem); ok {
-					return m, tea.ExecProcess(m.repo.ShowCommand(item.commit.Hash), nil)
+					if m.showDiff {
+						m.showDiff = false
+					} else {
+						m.showDiff = true
+						if m.diffHash != item.commit.Hash {
+							m.loadDiff(item.commit.Hash)
+						}
+						m.diffViewport.GotoTop()
+					}
 				}
 			}
 		}
 
-		if m.mode == modeCommits {
+		if m.mode == modeCommits && m.showDiff {
 			switch msg.String() {
 			case "j", "k", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
 				var cmd tea.Cmd
@@ -201,7 +210,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	previousHash := m.selectedCommitHash()
 	m.list, cmd = m.list.Update(msg)
-	if m.mode == modeCommits {
+	if m.mode == modeCommits && m.showDiff {
 		if hash := m.selectedCommitHash(); hash != previousHash && hash != "" {
 			m.loadDiff(hash)
 		}
@@ -327,10 +336,8 @@ func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
 	m.list.SetStatusBarItemName("commit", "commits")
 	m.list.SetItems(items)
 	m.list.Select(0)
+	m.showDiff = false
 	m.mode = modeCommits
-	if item, ok := m.list.SelectedItem().(commitItem); ok {
-		m.loadDiff(item.commit.Hash)
-	}
 	return m, nil
 }
 
@@ -414,7 +421,11 @@ func (m model) footer() string {
 		if m.slug != "" {
 			keys = append(keys, "o open on github")
 		}
-		keys = append(keys, "j/k scroll", "s show", "esc back", "q quit")
+		if m.showDiff {
+			keys = append(keys, "j/k scroll", "s hide diff", "esc back", "q quit")
+		} else {
+			keys = append(keys, "s show diff", "esc back", "q quit")
+		}
 	}
 	return footerStyle.Render(strings.Join(keys, " · "))
 }
@@ -440,8 +451,12 @@ func (m model) View() string {
 		}
 	case modeCommits:
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
-			header := previewHeaderStyle.Render(item.commit.Subject)
-			preview = header + "\n" + m.diffViewport.View()
+			if m.showDiff {
+				header := previewHeaderStyle.Render(item.commit.Subject)
+				preview = header + "\n" + m.diffViewport.View()
+			} else {
+				preview = previewHeaderStyle.Render(item.commit.Subject) + "\n" + renderCommitPreview(item)
+			}
 		} else {
 			preview = "No commits this month."
 		}

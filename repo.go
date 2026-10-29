@@ -118,40 +118,8 @@ func ParseGitHubSlug(url string) string {
 // always-paging less, since the user's pager may be "cat" (jj) or exit on
 // short diffs (less -F). Delta, when installed, provides the syntax
 // highlighting: it consumes the raw diff from either tool.
-func (r *Repo) ShowCommand(hash string) *exec.Cmd {
-	_, deltaErr := exec.LookPath("delta")
-	hasDelta := deltaErr == nil
-
-	var script string
-	switch {
-	case r.IsJJ && hasDelta:
-		script = fmt.Sprintf("jj show -r %s --no-pager --color never | delta | less -R", hash)
-	case r.IsJJ:
-		script = fmt.Sprintf("jj show -r %s --no-pager --color always | less -R", hash)
-	default:
-		git := "git --no-pager -c color.ui=always"
-		if r.MailmapFile != "" {
-			git += " -c mailmap.file=" + shellQuote(r.MailmapFile)
-		}
-		if r.GitDir != "" {
-			git += " --git-dir=" + shellQuote(r.GitDir)
-		}
-		script = fmt.Sprintf("%s show %s", git, hash)
-		if hasDelta {
-			script += " | delta | less -R"
-		} else {
-			script += " | less -R"
-		}
-	}
-	cmd := exec.Command("sh", "-c", script)
-	cmd.Dir = r.Dir
-	return cmd
-}
 
 // shellQuote single-quotes a string for safe use in a shell command.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
-}
 
 // LoadCommits fetches and parses the repo's commit history.
 func (r *Repo) LoadCommits() ([]Commit, error) {
