@@ -86,9 +86,6 @@ func (a authorItem) Description() string {
 	if a.profile.Team != "" {
 		desc += " · " + a.profile.Team
 	}
-	if a.profile.Active {
-		desc += " · active"
-	}
 	return desc
 }
 
