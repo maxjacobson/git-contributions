@@ -114,18 +114,37 @@ func ParseGitHubSlug(url string) string {
 	return ""
 }
 
-// ShowCommand returns the command that shows one commit in the user's own
-// pager setup: jj's renderer in jj repos, git show in plain git repos.
+// ShowCommand returns the command that shows one commit's diff in our own
+// always-paging less, since the user's pager may be "cat" (jj) or exit on
+// short diffs (less -F). The rendering still comes from the user's tools:
+// jj's own renderer in jj repos, delta (if installed) in plain git repos.
 func (r *Repo) ShowCommand(hash string) *exec.Cmd {
+	var script string
 	if r.IsJJ {
-		cmd := exec.Command("jj", "show", "-r", hash)
-		cmd.Dir = r.Dir
-		return cmd
+		script = fmt.Sprintf("jj show -r %s --no-pager --color always | less -R", hash)
+	} else {
+		git := "git --no-pager -c color.ui=always"
+		if r.MailmapFile != "" {
+			git += " -c mailmap.file=" + shellQuote(r.MailmapFile)
+		}
+		if r.GitDir != "" {
+			git += " --git-dir=" + shellQuote(r.GitDir)
+		}
+		script = fmt.Sprintf("%s show %s", git, hash)
+		if _, err := exec.LookPath("delta"); err == nil {
+			script += " | delta | less -R"
+		} else {
+			script += " | less -R"
+		}
 	}
-	args := r.gitArgs("show", hash)
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("sh", "-c", script)
 	cmd.Dir = r.Dir
 	return cmd
+}
+
+// shellQuote single-quotes a string for safe use in a shell command.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // LoadCommits fetches and parses the repo's commit history.

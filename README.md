@@ -43,7 +43,7 @@ Flags:
 - `enter` — drill into the selected month, contributor, or commit
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `s` — in the commit view, show the diff with `git show` or `jj show`,
-  using your own pager setup
+  paged through `less` so even small diffs stay on screen
 - `esc` — back out (or quit from the month list)
 - `q` or `ctrl+c` — quit
 
