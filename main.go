@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 )
 
 func main() {
@@ -22,11 +21,9 @@ func main() {
 		commits = FilterDependabot(commits)
 	}
 
-	_, deltaErr := exec.LookPath("delta")
-	hasDelta := deltaErr == nil
 	slug := repo.GitHubSlug()
 
-	if err := RunUI(os.Stdout, commits, SummarizeMonths(commits), repo, slug, hasDelta); err != nil {
+	if err := RunUI(os.Stdout, commits, SummarizeMonths(commits), repo, slug); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

@@ -22,6 +22,8 @@ type Repo struct {
 	// StartCommit is the commit whose ancestry to walk. Empty means HEAD,
 	// the plain git behavior.
 	StartCommit string
+	// IsJJ marks repos detected as jj workspaces.
+	IsJJ bool
 }
 
 // DetectRepo checks whether we are inside a jj workspace and, if so, finds
@@ -33,7 +35,7 @@ func DetectRepo() *Repo {
 		if gitDir == "" {
 			return &Repo{}
 		}
-		repo := &Repo{GitDir: gitDir}
+		repo := &Repo{GitDir: gitDir, IsJJ: true}
 		if out, err := exec.Command("jj", "workspace", "root").Output(); err == nil {
 			repo.Dir = strings.TrimSpace(string(out))
 			if repo.Dir != "" {
@@ -112,25 +114,18 @@ func ParseGitHubSlug(url string) string {
 	return ""
 }
 
-// DiffCommand returns the command that shows one commit's diff through
-// delta and less, for the commit preview overlay.
-func (r *Repo) DiffCommand(hash string) *exec.Cmd {
-	git := "git"
-	if r.MailmapFile != "" {
-		git += " -c mailmap.file=" + shellQuote(r.MailmapFile)
+// ShowCommand returns the command that shows one commit in the user's own
+// pager setup: jj's renderer in jj repos, git show in plain git repos.
+func (r *Repo) ShowCommand(hash string) *exec.Cmd {
+	if r.IsJJ {
+		cmd := exec.Command("jj", "show", "-r", hash)
+		cmd.Dir = r.Dir
+		return cmd
 	}
-	if r.GitDir != "" {
-		git += " --git-dir=" + shellQuote(r.GitDir)
-	}
-	script := fmt.Sprintf("%s show %s | delta | less -R", git, hash)
-	cmd := exec.Command("sh", "-c", script)
+	args := r.gitArgs("show", hash)
+	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
 	return cmd
-}
-
-// shellQuote single-quotes a string for safe use in a shell command.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // LoadCommits fetches and parses the repo's commit history.

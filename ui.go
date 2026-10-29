@@ -110,10 +110,9 @@ type model struct {
 	currentAuthor string
 	repo          *Repo
 	slug          string
-	hasDelta      bool
 }
 
-func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string, hasDelta bool) model {
+func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string) model {
 	items := make([]list.Item, len(months))
 	for i, summary := range months {
 		items[i] = monthItem{summary: summary}
@@ -126,7 +125,7 @@ func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string, 
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 
-	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug, hasDelta: hasDelta}
+	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug}
 }
 
 func (m model) Init() tea.Cmd {
@@ -173,10 +172,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case "p":
-			if m.mode == modeCommits && m.hasDelta {
+		case "s":
+			if m.mode == modeCommits {
 				if item, ok := m.list.SelectedItem().(commitItem); ok {
-					return m, tea.ExecProcess(m.repo.DiffCommand(item.commit.Hash), nil)
+					return m, tea.ExecProcess(m.repo.ShowCommand(item.commit.Hash), nil)
 				}
 			}
 		}
@@ -335,10 +334,7 @@ func (m model) footer() string {
 		if m.slug != "" {
 			keys = append(keys, "o open on github")
 		}
-		if m.hasDelta {
-			keys = append(keys, "p diff")
-		}
-		keys = append(keys, "esc back", "q quit")
+		keys = append(keys, "s show", "esc back", "q quit")
 	}
 	return footerStyle.Render(strings.Join(keys, " · "))
 }
@@ -381,11 +377,11 @@ func (m model) previewPane(preview string) string {
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
-func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string, hasDelta bool) error {
+func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
 		return nil
 	}
-	_, err := tea.NewProgram(newModel(commits, months, repo, slug, hasDelta), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(commits, months, repo, slug), tea.WithAltScreen()).Run()
 	return err
 }
