@@ -36,6 +36,11 @@ Behavioral decisions worth remembering:
   top (bubbles list preserves its index across SetItems, so every
   transition selects explicitly)
 - The list's own filtering (`/`) is disabled; MJ does not want it
+- Contributor metadata lives repo-locally, outside history:
+  `.jj/git-contributions-metadata` (jj) or `.git/git-contributions-metadata`
+  (git). JSON, keyed by mailmapped name, with note/active/team/aliases; the
+  README has the schema. `t` toggles the teams view; unassigned contributors
+  land in a `(no team)` bucket
 
 ## The diff pane
 
@@ -68,6 +73,7 @@ tools and display it:
 ## Structure
 
 - `stats.go` — Commit/AuthorStats/MonthSummary types, aggregation, median/mean
+- `metadata.go` — contributor profiles: load, aliases, lookup
 - `parse.go` — parses the `git log --shortstat` output format
 - `repo.go` — jj vs git detection, running git/jj, GitHub slug from origin
 - `ui.go` — the TUI: three views, preview panes, actions bar, diff viewport

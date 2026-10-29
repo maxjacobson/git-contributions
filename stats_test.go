@@ -83,6 +83,40 @@ func TestSummarizeAuthors(t *testing.T) {
 	}
 }
 
+func TestSummarizeTeams(t *testing.T) {
+	commits := []Commit{
+		{Month: "2024-03", Author: "Alice", Insertions: 10, Deletions: 2},
+		{Month: "2024-03", Author: "Bob", Insertions: 4, Deletions: 4},
+		{Month: "2024-03", Author: "Carol", Insertions: 1},
+		{Month: "2024-03", Author: "Alice", Parents: "abc def"},
+	}
+	teamOf := func(author string) string {
+		teams := map[string]string{"Alice": "Core", "Bob": "Core"}
+		return teams[author]
+	}
+
+	teams := SummarizeTeams(commits, teamOf)
+	if len(teams) != 2 {
+		t.Fatalf("got %d teams, want 2 (Core and no team)", len(teams))
+	}
+
+	if teams[0].Team != "Core" || teams[0].Stats.Commits != 3 {
+		t.Errorf("Core should lead with 3 pooled commits: %+v", teams[0].Stats)
+	}
+	if teams[0].Stats.MedianSize != 10 || teams[0].Stats.MeanSize != 10 || teams[0].Stats.Insertions != 14 {
+		t.Errorf("pooled stats wrong: %+v", teams[0].Stats)
+	}
+	if teams[0].Members[0].Author != "Alice" || teams[0].Members[0].Commits != 2 {
+		t.Errorf("roster wrong: %+v", teams[0].Members)
+	}
+	if teams[1].Team != "(no team)" {
+		t.Errorf("unexpected final team: %+v", teams[1].Team)
+	}
+	if teams[1].Members[0].Author != "Carol" {
+		t.Errorf("unassigned Carol should be in the no-team bucket: %+v", teams[1].Members)
+	}
+}
+
 func TestSummarizeMonths(t *testing.T) {
 	commits := []Commit{
 		{Month: "2024-02", Author: "Alice"},

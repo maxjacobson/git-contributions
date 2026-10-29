@@ -25,6 +25,32 @@ statistics — they have no diff of their own, and counting their zero size
 drove medians to 0 in merge-heavy repos like rails/rails. Empty commits are
 not counted at all.
 
+## Contributor metadata
+
+You can annotate contributors with your own notes, teams, and active status.
+The data lives entirely outside the repo's history, in a repo-local file:
+
+- jj repos: `.jj/git-contributions-metadata`
+- git repos: `.git/git-contributions-metadata`
+
+```json
+{
+  "Akira Matsuda": {
+    "note": "release captain",
+    "active": true,
+    "team": "Core",
+    "aliases": ["akira"]
+  }
+}
+```
+
+All fields are optional. Profiles are keyed by the mailmapped display name,
+and `aliases` lets other names resolve to the same profile. In the
+contributor view, `t` toggles between the people list and a teams list with
+pooled stats and a roster; `enter` on a team opens that team's commits for
+the month, with each commit's author named. Contributors without a team land
+in a `(no team)` bucket. A missing or malformed file just means no metadata.
+
 ## Usage
 
 ```console
@@ -57,6 +83,7 @@ Flags:
   shown with `enter`
 - `enter` — drill into the selected month or contributor; in the commit
   view, show or hide the commit's colorized diff
+- `t` — in the contributor view, toggle between people and teams
 - `space`/`pgup`/`pgdn` — page the commit diff
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `esc` — close the commit diff if shown, otherwise back out (or quit from

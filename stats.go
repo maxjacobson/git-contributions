@@ -80,6 +80,56 @@ func WithUnit(count int, unit string) string {
 	return fmt.Sprintf("%d %ss", count, unit)
 }
 
+// TeamSummary pools one team's contributions in one month.
+type TeamSummary struct {
+	Team    string
+	Stats   AuthorStats   // pooled; Author is the team name
+	Members []AuthorStats // per-member counts, busiest first
+}
+
+// SummarizeTeams pools commits by the team of their author. Authors whose
+// teamOf returns "" land in a "(no team)" bucket. Teams are sorted by commit
+// count (descending), then by name.
+func SummarizeTeams(commits []Commit, teamOf func(string) string) []TeamSummary {
+	byTeam := map[string][]Commit{}
+	for _, c := range commits {
+		team := teamOf(c.Author)
+		if team == "" {
+			team = "(no team)"
+		}
+		byTeam[team] = append(byTeam[team], c)
+	}
+
+	names := make([]string, 0, len(byTeam))
+	for team := range byTeam {
+		names = append(names, team)
+	}
+	sort.Strings(names)
+
+	teams := make([]TeamSummary, 0, len(names))
+	for _, team := range names {
+		teamCommits := byTeam[team]
+		pooled := make([]Commit, len(teamCommits))
+		for i, c := range teamCommits {
+			pooled[i] = c
+			pooled[i].Author = team
+		}
+		teams = append(teams, TeamSummary{
+			Team:    team,
+			Stats:   SummarizeAuthors(pooled)[0],
+			Members: SummarizeAuthors(teamCommits),
+		})
+	}
+
+	sort.SliceStable(teams, func(i, j int) bool {
+		if teams[i].Stats.Commits != teams[j].Stats.Commits {
+			return teams[i].Stats.Commits > teams[j].Stats.Commits
+		}
+		return teams[i].Team < teams[j].Team
+	})
+	return teams
+}
+
 // SummarizeMonths groups commits by month, newest first, with each month's
 // authors sorted by commit count (descending), then by name.
 func SummarizeMonths(commits []Commit) []MonthSummary {

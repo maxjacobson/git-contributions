@@ -22,6 +22,7 @@ type mode int
 const (
 	modeMonths mode = iota
 	modeAuthors
+	modeTeams
 	modeCommits
 )
 
@@ -70,7 +71,7 @@ func (a authorItem) Title() string {
 }
 
 func (a authorItem) Description() string {
-	desc := fmt.Sprintf("%d commits", a.stats.Commits)
+	desc := WithUnit(a.stats.Commits, "commit")
 	if a.profile.Team != "" {
 		desc += " · " + a.profile.Team
 	}
@@ -86,7 +87,8 @@ func (a authorItem) Description() string {
 func (a authorItem) FilterValue() string { return a.stats.Author }
 
 type commitItem struct {
-	commit Commit
+	commit     Commit
+	showAuthor bool
 }
 
 func (c commitItem) Title() string {
@@ -102,6 +104,9 @@ func (c commitItem) Description() string {
 	if parentCount(c.commit) >= 2 {
 		size = "merge"
 	}
+	if c.showAuthor {
+		return fmt.Sprintf("%s · %s · %s", c.commit.Author, dayLabel(c.commit.Day), size)
+	}
 	return fmt.Sprintf("%s · %s", dayLabel(c.commit.Day), size)
 }
 
@@ -113,6 +118,20 @@ func dayLabel(day string) string {
 	}
 	return t.Format("Jan 2")
 }
+
+type teamItem struct {
+	summary TeamSummary
+}
+
+func (t teamItem) Title() string {
+	return t.summary.Team
+}
+
+func (t teamItem) Description() string {
+	return fmt.Sprintf("%s by %d members", WithUnit(t.summary.Stats.Commits, "commit"), len(t.summary.Members))
+}
+
+func (t teamItem) FilterValue() string { return t.summary.Team }
 
 func (c commitItem) FilterValue() string { return c.commit.Subject }
 
@@ -130,6 +149,7 @@ type model struct {
 	width         int
 	currentMonth  string
 	currentAuthor string
+	currentTeam   string
 	repo          *Repo
 	slug          string
 	metadata      Metadata
@@ -181,9 +201,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.showDiff = false
 					return m, nil
 				}
+				if m.currentTeam != "" {
+					return m.switchToTeams(m.currentMonth)
+				}
 				return m.switchToAuthors(m.currentMonth)
 			}
 			return m, tea.Quit
+		case "t":
+			switch m.mode {
+			case modeAuthors:
+				return m.switchToTeams(m.currentMonth)
+			case modeTeams:
+				return m.switchToAuthors(m.currentMonth)
+			}
 		case "enter":
 			switch m.mode {
 			case modeMonths:
@@ -193,6 +223,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case modeAuthors:
 				if item, ok := m.list.SelectedItem().(authorItem); ok {
 					return m.switchToCommits(item.stats.Author)
+				}
+			case modeTeams:
+				if item, ok := m.list.SelectedItem().(teamItem); ok {
+					return m.switchToTeamCommits(item.summary.Team)
 				}
 			case modeCommits:
 				if item, ok := m.list.SelectedItem().(commitItem); ok {
@@ -348,6 +382,7 @@ func (m model) switchToMonths() (tea.Model, tea.Cmd) {
 
 func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 	m.currentMonth = month
+	m.currentTeam = ""
 	for _, summary := range m.months {
 		if summary.Month != month {
 			continue
@@ -367,6 +402,57 @@ func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 		m.list.Select(index)
 	}
 	m.mode = modeAuthors
+	return m, nil
+}
+
+// teamOf returns the team of a contributor per the metadata, or an empty
+// string when unassigned.
+func (m model) teamOf(author string) string {
+	profile, _ := m.metadata.Lookup(author)
+	return profile.Team
+}
+
+func (m model) switchToTeams(month string) (tea.Model, tea.Cmd) {
+	m.currentMonth = month
+	m.currentTeam = ""
+
+	var monthCommits []Commit
+	for _, c := range m.commits {
+		if c.Month == month {
+			monthCommits = append(monthCommits, c)
+		}
+	}
+	teams := SummarizeTeams(monthCommits, m.teamOf)
+	items := make([]list.Item, len(teams))
+	for i, summary := range teams {
+		items[i] = teamItem{summary: summary}
+	}
+	m.list.Title = monthLabel(month)
+	m.list.SetStatusBarItemName("team", "teams")
+	m.list.SetItems(items)
+	m.list.Select(0)
+	m.mode = modeTeams
+	return m, nil
+}
+
+func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
+	m.currentTeam = team
+
+	var items []list.Item
+	for _, c := range m.commits {
+		inTeam := m.teamOf(c.Author) == team || (team == "(no team)" && m.teamOf(c.Author) == "")
+		if c.Month == m.currentMonth && inTeam {
+			items = append(items, commitItem{commit: c, showAuthor: true})
+		}
+	}
+	if items == nil {
+		items = []list.Item{}
+	}
+	m.list.Title = team
+	m.list.SetStatusBarItemName("commit", "commits")
+	m.list.SetItems(items)
+	m.list.Select(0)
+	m.mode = modeCommits
 	return m, nil
 }
 
@@ -412,7 +498,6 @@ func renderMonthPreview(summary MonthSummary) string {
 // renderAuthorPreview is the per-author metadata for a month, with the same
 // columns as the original script.
 func renderAuthorPreview(item authorItem) string {
-	stats := item.stats
 	var b strings.Builder
 	if item.profile.Team != "" || item.profile.Note != "" || item.profile.Active {
 		if item.profile.Team != "" {
@@ -426,6 +511,14 @@ func renderAuthorPreview(item authorItem) string {
 		}
 		fmt.Fprint(&b, "\n")
 	}
+	b.WriteString(renderStatsTable(item.stats))
+	return b.String()
+}
+
+// renderStatsTable is the commit-count and size columns shared by the author
+// and team previews.
+func renderStatsTable(stats AuthorStats) string {
+	var b strings.Builder
 	fmt.Fprintf(&b, "%-18s %d\n", "Merge commits", stats.MergeCount)
 	fmt.Fprintf(&b, "%-18s %d\n", "Non-merge commits", stats.Commits-stats.MergeCount)
 	fmt.Fprint(&b, "\n")
@@ -433,6 +526,17 @@ func renderAuthorPreview(item authorItem) string {
 	fmt.Fprintf(&b, "%-12s %s\n", "Mean size", WithUnit(stats.MeanSize, "line"))
 	fmt.Fprintf(&b, "%-12s +%s\n", "Insertions", WithUnit(stats.Insertions, "line"))
 	fmt.Fprintf(&b, "%-12s -%s\n", "Deletions", WithUnit(stats.Deletions, "line"))
+	return b.String()
+}
+
+// renderTeamPreview is a team's roster followed by its pooled stats.
+func renderTeamPreview(item teamItem) string {
+	var b strings.Builder
+	for _, member := range item.summary.Members {
+		fmt.Fprintf(&b, "%-24s %4d\n", member.Author, member.Commits)
+	}
+	b.WriteString("\n")
+	b.WriteString(renderStatsTable(item.summary.Stats))
 	return b.String()
 }
 
@@ -478,7 +582,9 @@ func (m model) footer() string {
 	case modeMonths:
 		keys = append(keys, "enter contributors", "esc/q quit")
 	case modeAuthors:
-		keys = append(keys, "enter commits", "esc/q back", "ctrl+c quit")
+		keys = append(keys, "enter commits", "t teams", "esc/q back", "ctrl+c quit")
+	case modeTeams:
+		keys = append(keys, "enter commits", "t people", "esc/q back", "ctrl+c quit")
 	case modeCommits:
 		if m.slug != "" {
 			keys = append(keys, "o open on github")
@@ -510,6 +616,12 @@ func (m model) View() string {
 			preview = previewHeaderStyle.Render(item.stats.Author) + "\n" + renderAuthorPreview(item)
 		} else {
 			preview = "No contributors this month."
+		}
+	case modeTeams:
+		if item, ok := m.list.SelectedItem().(teamItem); ok {
+			preview = previewHeaderStyle.Render(item.summary.Team) + "\n" + renderTeamPreview(item)
+		} else {
+			preview = "No teams with commits this month."
 		}
 	case modeCommits:
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
