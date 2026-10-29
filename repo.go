@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -52,22 +53,13 @@ func DetectRepo() *Repo {
 
 // LogOutput runs git log and returns its raw output.
 func (r *Repo) LogOutput() (string, error) {
-	args := []string{}
-	if r.MailmapFile != "" {
-		args = append(args, "-c", "mailmap.file="+r.MailmapFile)
-	}
-	if r.GitDir != "" {
-		args = append(args, "--git-dir", r.GitDir)
-	}
-	args = append(args, "log")
+	args := r.gitArgs("log")
 	if r.StartCommit != "" {
 		args = append(args, r.StartCommit)
 	}
 	args = append(args, "--pretty=tformat:%ad;;;%aN;;;%H;;;%P;;;%s", "--date=format:%Y-%m-%d", "--shortstat")
 
-	cmd := exec.Command("git", args...)
-	cmd.Dir = r.Dir
-	out, err := cmd.Output()
+	out, err := r.runGit(args...)
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			return "", fmt.Errorf("git log failed: %s", strings.TrimSpace(string(exitErr.Stderr)))
@@ -75,6 +67,70 @@ func (r *Repo) LogOutput() (string, error) {
 		return "", fmt.Errorf("git log failed: %w", err)
 	}
 	return string(out), nil
+}
+
+// gitArgs builds a git command line with the repo's global options.
+func (r *Repo) gitArgs(args ...string) []string {
+	full := []string{}
+	if r.MailmapFile != "" {
+		full = append(full, "-c", "mailmap.file="+r.MailmapFile)
+	}
+	if r.GitDir != "" {
+		full = append(full, "--git-dir", r.GitDir)
+	}
+	return append(full, args...)
+}
+
+func (r *Repo) runGit(args ...string) ([]byte, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = r.Dir
+	return cmd.Output()
+}
+
+// GitHubSlug returns "owner/repo" if the origin remote points at
+// github.com, or an empty string otherwise.
+func (r *Repo) GitHubSlug() string {
+	out, err := r.runGit(r.gitArgs("remote", "get-url", "origin")...)
+	if err != nil {
+		return ""
+	}
+	return ParseGitHubSlug(strings.TrimSpace(string(out)))
+}
+
+// ParseGitHubSlug extracts "owner/repo" from a github.com remote URL in
+// SSH or HTTPS form.
+func ParseGitHubSlug(url string) string {
+	for _, re := range []*regexp.Regexp{
+		regexp.MustCompile(`^git@github\.com:([^/]+)/([^/]+?)(\.git)?$`),
+		regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+?)(\.git)?$`),
+		regexp.MustCompile(`^ssh://git@github\.com/([^/]+)/([^/]+?)(\.git)?$`),
+	} {
+		if matches := re.FindStringSubmatch(url); matches != nil {
+			return matches[1] + "/" + matches[2]
+		}
+	}
+	return ""
+}
+
+// DiffCommand returns the command that shows one commit's diff through
+// delta and less, for the commit preview overlay.
+func (r *Repo) DiffCommand(hash string) *exec.Cmd {
+	git := "git"
+	if r.MailmapFile != "" {
+		git += " -c mailmap.file=" + shellQuote(r.MailmapFile)
+	}
+	if r.GitDir != "" {
+		git += " --git-dir=" + shellQuote(r.GitDir)
+	}
+	script := fmt.Sprintf("%s show %s | delta | less -R", git, hash)
+	cmd := exec.Command("sh", "-c", script)
+	cmd.Dir = r.Dir
+	return cmd
+}
+
+// shellQuote single-quotes a string for safe use in a shell command.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // LoadCommits fetches and parses the repo's commit history.

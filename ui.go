@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io"
+	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -32,6 +34,9 @@ var (
 	previewHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
 				MarginBottom(1)
+
+	footerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241"))
 )
 
 type monthItem struct {
@@ -94,9 +99,12 @@ type model struct {
 	height        int
 	currentMonth  string
 	currentAuthor string
+	repo          *Repo
+	slug          string
+	hasDelta      bool
 }
 
-func newModel(commits []Commit, months []MonthSummary) model {
+func newModel(commits []Commit, months []MonthSummary, repo *Repo, slug string, hasDelta bool) model {
 	items := make([]list.Item, len(months))
 	for i, summary := range months {
 		items[i] = monthItem{summary: summary}
@@ -107,8 +115,9 @@ func newModel(commits []Commit, months []MonthSummary) model {
 	l.SetStatusBarItemName("month", "months")
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
+	l.SetShowHelp(false)
 
-	return model{commits: commits, months: months, list: l, mode: modeMonths}
+	return model{commits: commits, months: months, list: l, mode: modeMonths, repo: repo, slug: slug, hasDelta: hasDelta}
 }
 
 func (m model) Init() tea.Cmd {
@@ -120,7 +129,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.ready = true
 		m.height = msg.Height
-		m.list.SetSize(msg.Width/3, msg.Height)
+		m.list.SetSize(msg.Width/3, msg.Height-1)
 		return m, nil
 
 	case tea.KeyMsg:
@@ -144,6 +153,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case modeAuthors:
 				if item, ok := m.list.SelectedItem().(authorItem); ok {
 					return m.switchToCommits(item.stats.Author)
+				}
+			}
+		case "o":
+			if m.mode == modeCommits && m.slug != "" {
+				if item, ok := m.list.SelectedItem().(commitItem); ok {
+					url := fmt.Sprintf("https://github.com/%s/commit/%s", m.slug, item.commit.Hash)
+					if cmd := openBrowser(url); cmd != nil {
+						return m, tea.ExecProcess(cmd, nil)
+					}
+				}
+			}
+		case "p":
+			if m.mode == modeCommits && m.hasDelta {
+				if item, ok := m.list.SelectedItem().(commitItem); ok {
+					return m, tea.ExecProcess(m.repo.DiffCommand(item.commit.Hash), nil)
 				}
 			}
 		}
@@ -266,6 +290,39 @@ func shortHash(hash string) string {
 	return hash
 }
 
+// openBrowser returns the command to open a URL in the browser, or nil on
+// unsupported platforms.
+func openBrowser(url string) *exec.Cmd {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url)
+	case "linux":
+		return exec.Command("xdg-open", url)
+	default:
+		return nil
+	}
+}
+
+// footer is the actions bar, listing the keys that work in the current view.
+func (m model) footer() string {
+	keys := []string{"↑/↓ move"}
+	switch m.mode {
+	case modeMonths:
+		keys = append(keys, "enter contributors", "esc quit")
+	case modeAuthors:
+		keys = append(keys, "enter commits", "esc back", "q quit")
+	case modeCommits:
+		if m.slug != "" {
+			keys = append(keys, "o open on github")
+		}
+		if m.hasDelta {
+			keys = append(keys, "p diff")
+		}
+		keys = append(keys, "esc back", "q quit")
+	}
+	return footerStyle.Render(strings.Join(keys, " · "))
+}
+
 func (m model) View() string {
 	if !m.ready {
 		return "Loading..."
@@ -293,22 +350,22 @@ func (m model) View() string {
 		}
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))
+	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview)) + "\n" + m.footer()
 }
 
 // previewPane pads the preview and clamps it to the terminal height, so a
 // month with many contributors cannot push the header off the top of the
 // screen.
 func (m model) previewPane(preview string) string {
-	return lipgloss.NewStyle().MaxHeight(m.height).Render(previewStyle.Render(preview))
+	return lipgloss.NewStyle().MaxHeight(m.height - 1).Render(previewStyle.Render(preview))
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
-func RunUI(w io.Writer, commits []Commit, months []MonthSummary) error {
+func RunUI(w io.Writer, commits []Commit, months []MonthSummary, repo *Repo, slug string, hasDelta bool) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
 		return nil
 	}
-	_, err := tea.NewProgram(newModel(commits, months), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(commits, months, repo, slug, hasDelta), tea.WithAltScreen()).Run()
 	return err
 }
