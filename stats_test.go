@@ -75,7 +75,7 @@ func TestSummarizeAuthors(t *testing.T) {
 
 	stats := SummarizeAuthors(commits)
 	want := []AuthorStats{
-		{Author: "Alice", Commits: 4, MedianSize: 8, MeanSize: 7, Insertions: 15, Deletions: 6},
+		{Author: "Alice", Commits: 4, MergeCount: 1, MedianSize: 8, MeanSize: 7, Insertions: 15, Deletions: 6},
 		{Author: "Bob", Commits: 1, MedianSize: 0, MeanSize: 0},
 	}
 	if !reflect.DeepEqual(stats, want) {

@@ -175,7 +175,9 @@ func renderMonthPreview(summary MonthSummary) string {
 func renderAuthorPreview(item authorItem) string {
 	stats := item.stats
 	var b strings.Builder
-	fmt.Fprintf(&b, "%-12s %d\n", "Commits", stats.Commits)
+	fmt.Fprintf(&b, "%-18s %d\n", "Merge commits", stats.MergeCount)
+	fmt.Fprintf(&b, "%-18s %d\n", "Non-merge commits", stats.Commits-stats.MergeCount)
+	fmt.Fprint(&b, "\n")
 	fmt.Fprintf(&b, "%-12s %s\n", "Median size", WithUnit(stats.MedianSize, "line"))
 	fmt.Fprintf(&b, "%-12s %s\n", "Mean size", WithUnit(stats.MeanSize, "line"))
 	fmt.Fprintf(&b, "%-12s +%s\n", "Insertions", WithUnit(stats.Insertions, "line"))

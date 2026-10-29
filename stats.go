@@ -22,12 +22,13 @@ func (c Commit) Size() int {
 
 // AuthorStats summarizes one author's contributions in one month.
 type AuthorStats struct {
-	Author     string
-	Commits    int
-	MedianSize int
-	MeanSize   int
-	Insertions int
-	Deletions  int
+	Author      string
+	Commits     int
+	MergeCount  int
+	MedianSize  int
+	MeanSize    int
+	Insertions  int
+	Deletions   int
 }
 
 // MonthSummary describes one month's contributions.
@@ -117,9 +118,11 @@ func SummarizeAuthors(commits []Commit) []AuthorStats {
 	stats := make([]AuthorStats, 0, len(authors))
 	for _, author := range authors {
 		commits := byAuthor[author]
+		mergeCount := 0
 		var sizes, insertions, deletions []int
 		for _, c := range commits {
 			if parentCount(c) >= 2 {
+				mergeCount++
 				continue
 			}
 			sizes = append(sizes, c.Size())
@@ -129,6 +132,7 @@ func SummarizeAuthors(commits []Commit) []AuthorStats {
 		stats = append(stats, AuthorStats{
 			Author:     author,
 			Commits:    len(commits),
+			MergeCount: mergeCount,
 			MedianSize: Median(sizes),
 			MeanSize:   Mean(sizes),
 			Insertions: Sum(insertions),
