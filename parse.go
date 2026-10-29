@@ -8,10 +8,8 @@ import (
 	"strings"
 )
 
-// headerRe matches the log format line for one commit:
-// "2024-03;;;Alice;;;abc123 def456", where the parents are empty for root
-// commits.
-var headerRe = regexp.MustCompile(`^(\d{4}-\d{2});;;(.*);;;(.*)$`)
+// dateRe matches the log format date, "2024-03-15".
+var dateRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 var (
 	insertionsRe = regexp.MustCompile(`(\d+) insertion`)
@@ -19,7 +17,7 @@ var (
 )
 
 // ParseLog parses the output of
-// git log --pretty=tformat:"%ad;;;%aN;;;%P" --date=format:"%Y-%m" --shortstat
+// git log --pretty=tformat:"%ad;;;%aN;;;%H;;;%P;;;%s" --date=format:"%Y-%m-%d" --shortstat
 // into commits. Commits with no stat line and fewer than two parents are
 // skipped as empty, since a merge commit has no stat but is a real commit,
 // while an empty commit is not a contribution.
@@ -39,9 +37,9 @@ func ParseLog(output string) ([]Commit, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		if matches := headerRe.FindStringSubmatch(line); matches != nil {
+		if parts, ok := parseHeader(line); ok {
 			flush()
-			current = Commit{Month: matches[1], Author: matches[2], Parents: matches[3]}
+			current = parts
 			started = true
 			hasStat = false
 			continue
@@ -66,6 +64,26 @@ func ParseLog(output string) ([]Commit, error) {
 	}
 	flush()
 	return commits, nil
+}
+
+// parseHeader splits a header line into a Commit. The subject is everything
+// after the fourth separator, so subjects containing ";;;" survive intact.
+func parseHeader(line string) (Commit, bool) {
+	parts := strings.SplitN(line, ";;;", 5)
+	if len(parts) < 4 || !dateRe.MatchString(parts[0]) {
+		return Commit{}, false
+	}
+	commit := Commit{
+		Day:     parts[0],
+		Month:   parts[0][:7],
+		Author:  parts[1],
+		Hash:    parts[2],
+		Parents: parts[3],
+	}
+	if len(parts) == 5 {
+		commit.Subject = parts[4]
+	}
+	return commit, true
 }
 
 func parentCount(c Commit) int {

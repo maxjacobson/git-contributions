@@ -18,6 +18,7 @@ type mode int
 const (
 	modeMonths mode = iota
 	modeAuthors
+	modeCommits
 )
 
 var (
@@ -62,15 +63,40 @@ func (a authorItem) Description() string {
 
 func (a authorItem) FilterValue() string { return a.stats.Author }
 
-type model struct {
-	months []MonthSummary
-	list   list.Model
-	mode   mode
-	ready  bool
-	height int
+type commitItem struct {
+	commit Commit
 }
 
-func newModel(months []MonthSummary) model {
+func (c commitItem) Title() string {
+	title := c.commit.Subject
+	if title == "" {
+		title = "(no description set)"
+	}
+	return title
+}
+
+func (c commitItem) Description() string {
+	size := WithUnit(c.commit.Size(), "line")
+	if parentCount(c.commit) >= 2 {
+		size = "merge"
+	}
+	return fmt.Sprintf("%s · %s", c.commit.Day[8:], size)
+}
+
+func (c commitItem) FilterValue() string { return c.commit.Subject }
+
+type model struct {
+	months        []MonthSummary
+	commits       []Commit
+	list          list.Model
+	mode          mode
+	ready         bool
+	height        int
+	currentMonth  string
+	currentAuthor string
+}
+
+func newModel(commits []Commit, months []MonthSummary) model {
 	items := make([]list.Item, len(months))
 	for i, summary := range months {
 		items[i] = monthItem{summary: summary}
@@ -82,7 +108,7 @@ func newModel(months []MonthSummary) model {
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(false)
 
-	return model{months: months, list: l, mode: modeMonths}
+	return model{commits: commits, months: months, list: l, mode: modeMonths}
 }
 
 func (m model) Init() tea.Cmd {
@@ -102,14 +128,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
-			if m.mode == modeAuthors {
+			switch m.mode {
+			case modeAuthors:
 				return m.switchToMonths()
+			case modeCommits:
+				return m.switchToAuthors(m.currentMonth)
 			}
 			return m, tea.Quit
 		case "enter":
-			if m.mode == modeMonths {
+			switch m.mode {
+			case modeMonths:
 				if summary, ok := m.selectedMonth(); ok {
-					return m.switchToAuthors(summary)
+					return m.switchToAuthors(summary.Month)
+				}
+			case modeAuthors:
+				if item, ok := m.list.SelectedItem().(authorItem); ok {
+					return m.switchToCommits(item.stats.Author)
 				}
 			}
 		}
@@ -140,15 +174,40 @@ func (m model) switchToMonths() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) switchToAuthors(summary MonthSummary) (tea.Model, tea.Cmd) {
-	items := make([]list.Item, len(summary.Authors))
-	for i, stats := range summary.Authors {
-		items[i] = authorItem{stats: stats, month: summary.Month}
+func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
+	m.currentMonth = month
+	for _, summary := range m.months {
+		if summary.Month != month {
+			continue
+		}
+		items := make([]list.Item, len(summary.Authors))
+		for i, stats := range summary.Authors {
+			items[i] = authorItem{stats: stats, month: month}
+		}
+		m.list.Title = monthLabel(month)
+		m.list.SetStatusBarItemName("author", "authors")
+		m.list.SetItems(items)
 	}
-	m.list.Title = monthLabel(summary.Month)
-	m.list.SetStatusBarItemName("author", "authors")
-	m.list.SetItems(items)
 	m.mode = modeAuthors
+	return m, nil
+}
+
+func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
+	m.currentAuthor = author
+
+	var items []list.Item
+	for _, c := range m.commits {
+		if c.Month == m.currentMonth && c.Author == author {
+			items = append(items, commitItem{commit: c})
+		}
+	}
+	if items == nil {
+		items = []list.Item{}
+	}
+	m.list.Title = author
+	m.list.SetStatusBarItemName("commit", "commits")
+	m.list.SetItems(items)
+	m.mode = modeCommits
 	return m, nil
 }
 
@@ -185,6 +244,28 @@ func renderAuthorPreview(item authorItem) string {
 	return b.String()
 }
 
+// renderCommitPreview shows the details of one commit.
+func renderCommitPreview(item commitItem) string {
+	c := item.commit
+	var b strings.Builder
+	if parentCount(c) >= 2 {
+		fmt.Fprintf(&b, "Merge commit\n\n")
+	}
+	fmt.Fprintf(&b, "%-12s %s\n", "Date", c.Day)
+	fmt.Fprintf(&b, "%-12s %s\n", "Author", c.Author)
+	fmt.Fprintf(&b, "%-12s %s\n", "Hash", shortHash(c.Hash))
+	fmt.Fprintf(&b, "%-12s +%s\n", "Insertions", WithUnit(c.Insertions, "line"))
+	fmt.Fprintf(&b, "%-12s -%s\n", "Deletions", WithUnit(c.Deletions, "line"))
+	return b.String()
+}
+
+func shortHash(hash string) string {
+	if len(hash) > 7 {
+		return hash[:7]
+	}
+	return hash
+}
+
 func (m model) View() string {
 	if !m.ready {
 		return "Loading..."
@@ -204,6 +285,12 @@ func (m model) View() string {
 		} else {
 			preview = "No contributors this month."
 		}
+	case modeCommits:
+		if item, ok := m.list.SelectedItem().(commitItem); ok {
+			preview = previewHeaderStyle.Render(item.commit.Subject) + "\n" + renderCommitPreview(item)
+		} else {
+			preview = "No commits this month."
+		}
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))
@@ -217,11 +304,11 @@ func (m model) previewPane(preview string) string {
 }
 
 // RunUI loads the repo's history, filters it, and runs the TUI.
-func RunUI(w io.Writer, months []MonthSummary) error {
+func RunUI(w io.Writer, commits []Commit, months []MonthSummary) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
 		return nil
 	}
-	_, err := tea.NewProgram(newModel(months), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(commits, months), tea.WithAltScreen()).Run()
 	return err
 }

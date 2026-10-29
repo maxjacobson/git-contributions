@@ -8,8 +8,11 @@ import (
 
 // Commit is one commit, reduced to what this tool cares about.
 type Commit struct {
+	Day        string // "2024-03-15"
 	Month      string // "2024-03"
 	Author     string
+	Hash       string
+	Subject    string
 	Parents    string // space-separated parent hashes, empty for root commits
 	Insertions int
 	Deletions  int

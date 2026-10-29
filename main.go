@@ -21,7 +21,7 @@ func main() {
 		commits = FilterDependabot(commits)
 	}
 
-	if err := RunUI(os.Stdout, SummarizeMonths(commits)); err != nil {
+	if err := RunUI(os.Stdout, commits, SummarizeMonths(commits)); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

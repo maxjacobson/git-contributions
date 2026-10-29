@@ -4,11 +4,13 @@ Browse a repository's commit history by month in a terminal UI.
 
 When run from a git repo, it shows every month during which commits occurred.
 Focusing a month previews its contributors with commit counts, sorted by
-commit count. Drilling into a month shows per-author metadata, split into
-merge commits and non-merge commits, followed by the non-merge size
-statistics: median and mean commit size (insertions plus deletions, rounded
-down), and total insertions and deletions. Merge commits have no diff of
-their own, so they are excluded from the size statistics.
+commit count. Drilling into a month, then into a contributor, lists that
+contributor's individual commits for the month, newest first, and entering a
+commit shows its date, hash, and size. The author view shows per-author
+metadata, split into merge commits and non-merge commits, followed by the
+non-merge size statistics: median and mean commit size, plus total insertions
+and deletions. Merge commits have no diff of their own, so they are excluded
+from the size statistics.
 
 Built with [charm](https://charm.sh) (bubbletea, bubbles, lipgloss).
 
@@ -38,7 +40,7 @@ Flags:
 ## Keys
 
 - `↑`/`↓` — move through the list
-- `enter` — drill into the selected month
+- `enter` — drill into the selected month, contributor, or commit
 - `esc` — back out (or quit from the month list)
 - `q` or `ctrl+c` — quit
 

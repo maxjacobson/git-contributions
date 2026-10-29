@@ -63,7 +63,7 @@ func (r *Repo) LogOutput() (string, error) {
 	if r.StartCommit != "" {
 		args = append(args, r.StartCommit)
 	}
-	args = append(args, "--pretty=tformat:%ad;;;%aN;;;%P", "--date=format:%Y-%m", "--shortstat")
+	args = append(args, "--pretty=tformat:%ad;;;%aN;;;%H;;;%P;;;%s", "--date=format:%Y-%m-%d", "--shortstat")
 
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.Dir
