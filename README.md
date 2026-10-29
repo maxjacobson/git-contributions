@@ -34,7 +34,7 @@ The data lives entirely outside the repo's history, in a repo-local file:
 - git repos: `.git/git-contributions-metadata`
 
 Edit it by hand, or press `e` on a contributor in the contributor view to
-fill in the form (tab moves between fields, ↓/↑ picks a known team or "(new
+fill in the form (tab moves between fields; ↓/↑ picks a known team or "(new
 team…)" to type one, space or ←/→ flips the yes/no radio, enter saves, esc
 cancels):
 ```json

@@ -525,7 +525,10 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.switchToAuthors(m.currentMonth)
 		case "enter":
 			return m.saveForm()
-		case "tab", "down":
+		case "tab":
+			m.form.focus = (m.form.focus + 1) % 2
+			return m, m.focusFormField()
+		case "down":
 			if m.form.focus == 0 && len(m.form.knownTeams) > 0 {
 				if m.form.suggestionIndex < len(m.form.knownTeams) {
 					m.form.suggestionIndex++
@@ -535,7 +538,10 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.form.focus = (m.form.focus + 1) % 2
 			return m, m.focusFormField()
-		case "shift+tab", "up":
+		case "shift+tab":
+			m.form.focus = (m.form.focus + 1) % 2
+			return m, m.focusFormField()
+		case "up":
 			if m.form.focus == 0 && m.form.suggestionIndex >= 0 {
 				m.form.suggestionIndex--
 				m.applySuggestion()
