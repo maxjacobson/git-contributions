@@ -47,8 +47,9 @@ radio, enter saves, esc cancels):
 }
 ```
 
-All fields are optional. Profiles are keyed by the mailmapped display name,
-and `aliases` lets other names resolve to the same profile. In the
+All fields are optional, and active defaults to true for contributors with
+no profile yet. Profiles are keyed by the mailmapped display name, and
+`aliases` lets other names resolve to the same profile. In the
 contributor view, `t` toggles between the people list and a teams list with
 pooled stats and a roster; `enter` on a team opens that team's commits for
 the month, with each commit's author named. Contributors without a team land

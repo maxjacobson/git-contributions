@@ -487,7 +487,7 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 // openForm opens the profile form for one contributor, prefilled from any
 // existing metadata.
 func (m model) openForm(author string) (tea.Model, tea.Cmd) {
-	profile, _ := m.metadata.Lookup(author)
+	profile, found := m.metadata.Lookup(author)
 
 	note := textinput.New()
 	note.Placeholder = "note to self"
@@ -499,7 +499,7 @@ func (m model) openForm(author string) (tea.Model, tea.Cmd) {
 	team.Width = 40
 	team.SetValue(profile.Team)
 
-	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active}
+	m.form = form{author: author, inputs: []textinput.Model{note, team}, active: profile.Active || !found}
 	cmd := m.form.inputs[0].Focus()
 	m.mode = modeForm
 	return m, cmd
