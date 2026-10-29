@@ -517,10 +517,10 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.saveForm()
 		case "tab", "down":
 			m.form.focus = (m.form.focus + 1) % 3
-			return m, nil
+			return m, m.focusFormField()
 		case "shift+tab", "up":
 			m.form.focus = (m.form.focus + 2) % 3
-			return m, nil
+			return m, m.focusFormField()
 		case " ", "left", "right", "h", "l":
 			if m.form.focus == 2 {
 				m.form.active = !m.form.active
@@ -538,6 +538,20 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, cmd
+}
+
+// focusFormField focuses the input for the current form focus, blurring the
+// others.
+func (m *model) focusFormField() tea.Cmd {
+	var cmd tea.Cmd
+	for i := range m.form.inputs {
+		if i == m.form.focus {
+			cmd = m.form.inputs[i].Focus()
+		} else {
+			m.form.inputs[i].Blur()
+		}
+	}
+	return cmd
 }
 
 // saveForm writes the form's profile to the repo-local metadata file.
