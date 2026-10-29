@@ -10,15 +10,24 @@ total insertions and deletions.
 
 Built with [charm](https://charm.sh) (bubbletea, bubbles, lipgloss).
 
+**This project is vibecoded**: it was written by an AI coding agent
+([Crush](https://charm.land/blog/crush)) with MJ as the client and tech
+direction. See `AGENTS.md` for the working notes.
+
 ## Usage
 
 ```console
 $ git-contributions
 ```
 
+Git finds `git-contributions` on your `PATH`, so you can also run it as
+`git contributions` from inside any repo.
+
 Inside a jj workspace (colocated or not), the tool uses `jj git root` to find
-the underlying git repository and walks all refs, so history committed only in
-jj is still visible.
+the underlying git repository and walks the ancestry of the working copy
+commit, matching what `jj log` shows. Empty commits (the working copy commits
+jj scatters along the way) are not counted, and names are shown as specified
+in `.mailmap`.
 
 Flags:
 
@@ -30,7 +39,6 @@ Flags:
 - `enter` — drill into the selected month
 - `esc` — back out (or quit from the month list)
 - `q` or `ctrl+c` — quit
-- type to filter the list
 
 ## Development
 

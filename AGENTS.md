@@ -12,8 +12,14 @@ browses commit history by month in a terminal UI.
   deletions
 - Selecting an author is stats-only; enter does nothing there
 - Dependabot commits are excluded by default; `--include-dependabot` opts in
-- In jj workspaces, `jj git root` finds the underlying git dir and all refs
-  are walked, since jj's internal git repo has no meaningful HEAD
+- In jj workspaces, `jj git root` finds the underlying git dir and the tool
+  walks the ancestry of the working copy commit: `--all` would count the
+  abandoned and rewritten versions jj keeps alive via refs/jj/keep, which
+  inflates counts badly. Empty commits are skipped (merge commits are kept,
+  they just have no stat line)
+- Names are mailmapped: git runs from the workspace root (and gets
+  `mailmap.file` passed explicitly when .mailmap exists there), since git
+  does not discover .mailmap when --git-dir points inside .jj
 
 ## Commands
 
