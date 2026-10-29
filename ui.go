@@ -188,12 +188,17 @@ func (m model) selectedMonth() (MonthSummary, bool) {
 
 func (m model) switchToMonths() (tea.Model, tea.Cmd) {
 	items := make([]list.Item, len(m.months))
+	index := 0
 	for i, summary := range m.months {
 		items[i] = monthItem{summary: summary}
+		if summary.Month == m.currentMonth {
+			index = i
+		}
 	}
 	m.list.Title = "Months"
 	m.list.SetStatusBarItemName("month", "months")
 	m.list.SetItems(items)
+	m.list.Select(index)
 	m.mode = modeMonths
 	return m, nil
 }
@@ -205,12 +210,17 @@ func (m model) switchToAuthors(month string) (tea.Model, tea.Cmd) {
 			continue
 		}
 		items := make([]list.Item, len(summary.Authors))
+		index := 0
 		for i, stats := range summary.Authors {
 			items[i] = authorItem{stats: stats, month: month}
+			if stats.Author == m.currentAuthor {
+				index = i
+			}
 		}
 		m.list.Title = monthLabel(month)
 		m.list.SetStatusBarItemName("author", "authors")
 		m.list.SetItems(items)
+		m.list.Select(index)
 	}
 	m.mode = modeAuthors
 	return m, nil
@@ -231,6 +241,7 @@ func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {
 	m.list.Title = author
 	m.list.SetStatusBarItemName("commit", "commits")
 	m.list.SetItems(items)
+	m.list.Select(0)
 	m.mode = modeCommits
 	return m, nil
 }
