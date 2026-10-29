@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,7 @@ const (
 	modeAuthors
 	modeTeams
 	modeCommits
+	modeForm
 )
 
 var (
@@ -45,6 +47,14 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("39")).
 			Padding(1, 2)
+
+	formStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("39")).
+			Padding(1, 3)
+
+	errorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196"))
 )
 
 type monthItem struct {
@@ -119,6 +129,13 @@ func dayLabel(day string) string {
 	return t.Format("Jan 2")
 }
 
+type form struct {
+	author   string
+	inputs   []textinput.Model
+	focus    int
+	errorMsg string
+}
+
 type teamItem struct {
 	summary TeamSummary
 }
@@ -150,6 +167,7 @@ type model struct {
 	currentMonth  string
 	currentAuthor string
 	currentTeam   string
+	form          form
 	repo          *Repo
 	slug          string
 	metadata      Metadata
@@ -189,9 +207,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.mode == modeForm {
+			return m.updateForm(msg)
+		}
 		switch key := msg.String(); key {
 		case "ctrl+c":
 			return m, tea.Quit
+		case "e":
+			if m.mode == modeAuthors {
+				if item, ok := m.list.SelectedItem().(authorItem); ok {
+					return m.openForm(item.stats.Author)
+				}
+			}
 		case "esc", "q":
 			switch m.mode {
 			case modeAuthors:
@@ -454,6 +481,132 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 	m.list.Select(0)
 	m.mode = modeCommits
 	return m, nil
+}
+
+// openForm opens the profile form for one contributor, prefilled from any
+// existing metadata.
+func (m model) openForm(author string) (tea.Model, tea.Cmd) {
+	profile, _ := m.metadata.Lookup(author)
+
+	note := textinput.New()
+	note.Placeholder = "note to self"
+	note.Width = 40
+	note.SetValue(profile.Note)
+
+	team := textinput.New()
+	team.Placeholder = "e.g. Checkout"
+	team.Width = 40
+	team.SetValue(profile.Team)
+
+	active := textinput.New()
+	active.Width = 40
+	if profile.Active {
+		active.SetValue("y")
+	} else {
+		active.SetValue("n")
+	}
+
+	m.form = form{author: author, inputs: []textinput.Model{note, team, active}}
+	cmd := m.form.inputs[0].Focus()
+	m.mode = modeForm
+	return m, cmd
+}
+
+// updateForm routes keys inside the profile form.
+func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
+		case "ctrl+c":
+			return m, tea.Quit
+		case "esc":
+			return m.switchToAuthors(m.currentMonth)
+		case "enter":
+			return m.saveForm()
+		case "tab", "down":
+			m.form.focus = (m.form.focus + 1) % len(m.form.inputs)
+			m.form.inputs[m.form.focus].Focus()
+			return m, nil
+		case "shift+tab", "up":
+			m.form.focus = (m.form.focus + len(m.form.inputs) - 1) % len(m.form.inputs)
+			m.form.inputs[m.form.focus].Focus()
+			return m, nil
+		case " ":
+			if m.form.focus == 2 {
+				active := &m.form.inputs[2]
+				if strings.TrimSpace(active.Value()) == "y" {
+					active.SetValue("n")
+				} else {
+					active.SetValue("y")
+				}
+				return m, nil
+			}
+		}
+	}
+
+	var cmd tea.Cmd
+	for i := range m.form.inputs {
+		if i == m.form.focus {
+			m.form.inputs[i], cmd = m.form.inputs[i].Update(msg)
+		} else {
+			m.form.inputs[i].Blur()
+		}
+	}
+	return m, cmd
+}
+
+// saveForm writes the form's profile to the repo-local metadata file.
+func (m model) saveForm() (tea.Model, tea.Cmd) {
+	previous, _ := m.metadata.Lookup(m.form.author)
+	profile := Profile{
+		Note:    strings.TrimSpace(m.form.inputs[0].Value()),
+		Team:    strings.TrimSpace(m.form.inputs[1].Value()),
+		Active:  parseActive(m.form.inputs[2].Value()),
+		Aliases: previous.Aliases,
+	}
+
+	path := m.repo.MetadataFile()
+	if path == "" {
+		m.form.errorMsg = "could not determine the metadata file location"
+		return m, nil
+	}
+	if m.metadata == nil {
+		m.metadata = Metadata{}
+	}
+	m.metadata[m.form.author] = profile
+	if err := m.metadata.Save(path); err != nil {
+		m.form.errorMsg = err.Error()
+		return m, nil
+	}
+	return m.switchToAuthors(m.currentMonth)
+}
+
+// parseActive reads the Active field's y/n-style value.
+func parseActive(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "y", "yes", "true", "1":
+		return true
+	}
+	return false
+}
+
+// formView renders the profile form, centered.
+func (m model) formView() string {
+	var b strings.Builder
+	b.WriteString(previewHeaderStyle.Render(m.form.author) + "\n\n")
+	labels := []string{"Note", "Team", "Active"}
+	for i, input := range m.form.inputs {
+		cursor := "  "
+		if i == m.form.focus {
+			cursor = "> "
+		}
+		fmt.Fprintf(&b, "%s%-7s %s\n", cursor, labels[i]+":", input.View())
+	}
+	if m.form.errorMsg != "" {
+		b.WriteString("\n" + errorStyle.Render(m.form.errorMsg) + "\n")
+	}
+	b.WriteString("\n" + footerStyle.Render("enter save · esc cancel · tab next field · space toggle active"))
+	box := formStyle.Render(strings.TrimSuffix(b.String(), "\n"))
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 }
 
 func (m model) switchToCommits(author string) (tea.Model, tea.Cmd) {

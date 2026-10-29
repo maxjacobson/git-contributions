@@ -23,9 +23,13 @@ func TestParseGitHubSlug(t *testing.T) {
 }
 
 func TestGitHubSlugFromRepo(t *testing.T) {
+	dir := os.Getenv("HOME") + "/src/github/rails/rails"
+	if _, err := os.Stat(dir); err != nil {
+		t.Skip("rails checkout not present")
+	}
 	orig, _ := os.Getwd()
 	defer os.Chdir(orig)
-	os.Chdir(os.Getenv("HOME") + "/src/github/rails/rails")
+	os.Chdir(dir)
 
 	if got := DetectRepo().GitHubSlug(); got != "rails/rails" {
 		t.Errorf("got %q, want rails/rails", got)

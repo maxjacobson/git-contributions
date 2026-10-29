@@ -34,6 +34,15 @@ func LoadMetadata(path string) (Metadata, error) {
 	return metadata, nil
 }
 
+// Save writes the metadata back to the file.
+func (m Metadata) Save(path string) error {
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 // Lookup finds the profile for a contributor by primary name or alias.
 func (m Metadata) Lookup(name string) (Profile, bool) {
 	if p, ok := m[name]; ok {
