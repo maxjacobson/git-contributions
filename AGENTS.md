@@ -33,7 +33,7 @@ browses commit history by month in a terminal UI.
 ## Structure
 
 - `stats.go` — Commit/AuthorStats/MonthSummary types, aggregation, median/mean
-- `parse.go` — parses `git log --pretty=tformat:'%ad;;;%aN;;;' --date=format:'%Y-%m' --shortstat` output
+- `parse.go` — parses `git log --pretty=tformat:'%ad;;;%aN;;;%P' --date=format:'%Y-%m' --shortstat` output
 - `repo.go` — jj vs git detection, running git log, dependabot filtering
 - `ui.go` — bubbletea TUI (months list → author list, with preview panes)
 - `main.go` — flags and wiring
@@ -41,5 +41,8 @@ browses commit history by month in a terminal UI.
 ## Conventions
 
 - Commit with jj, atomically, early and often
+- To publish: describe the commit, then `jj bookmark set main -r @` and
+  `jj git push` (after `jj new`, `main -r @-` instead). Setting the bookmark
+  to `@-` before describing has twice left the newest commit off main
 - Tests cover the core logic, not the UI; MJ tests the UI by hand
 - No explanatory code comments
