@@ -61,7 +61,8 @@ Flags:
 - `o` — in the commit view, open the commit on GitHub (GitHub repos only)
 - `esc` — close the commit diff if shown, otherwise back out (or quit from
   the month list)
-- `q` or `ctrl+c` — quit
+- `q` — same as `esc`; quits from the month list
+- `ctrl+c` — quit from anywhere
 
 Backing out restores the selection you left behind; drilling in starts at
 the top.

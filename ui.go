@@ -161,7 +161,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key := msg.String(); key {
 		case "ctrl+c":
 			return m, tea.Quit
-		case "esc":
+		case "esc", "q":
 			switch m.mode {
 			case modeAuthors:
 				return m.switchToMonths()
@@ -452,17 +452,17 @@ func (m model) footer() string {
 	keys := []string{"↑/↓ move"}
 	switch m.mode {
 	case modeMonths:
-		keys = append(keys, "enter contributors", "esc quit")
+		keys = append(keys, "enter contributors", "esc/q quit")
 	case modeAuthors:
-		keys = append(keys, "enter commits", "esc back", "q quit")
+		keys = append(keys, "enter commits", "esc/q back", "ctrl+c quit")
 	case modeCommits:
 		if m.slug != "" {
 			keys = append(keys, "o open on github")
 		}
 		if m.showDiff {
-			keys = append(keys, "↑/↓ scroll", "enter hide diff", "esc back", "q quit")
+			keys = append(keys, "↑/↓ scroll", "enter hide diff", "esc/q back", "ctrl+c quit")
 		} else {
-			keys = append(keys, "enter show diff", "esc back", "q quit")
+			keys = append(keys, "enter show diff", "esc/q back", "ctrl+c quit")
 		}
 	}
 	return footerStyle.Render(strings.Join(keys, " · "))
