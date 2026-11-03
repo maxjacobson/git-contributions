@@ -100,12 +100,14 @@ tools and display it:
 
 ## Conventions
 
-- Commit with jj, atomically, early and often
+- Commit with jj, atomically, early and often, and push right away
+  rather than waiting to be asked
 - To publish: describe the commit, then `jj bookmark set main -r @` and
   `jj git push` (after `jj new`, `main -r @-` instead). Setting the bookmark
   to `@-` before describing has twice left the newest commit off main
 - Tests cover the core logic, not the UI; MJ tests the UI by hand and gives
-  fast feedback — for UI iterations, build and let him try before committing
+  fast feedback — for UI iterations, build for him to try, but commit and
+  push without waiting on his feedback
 - Ask before writing code; MJ weighs in on UX decisions like keybindings
 - Use the user's own tools rather than reimplementing their behavior
 - No explanatory code comments
