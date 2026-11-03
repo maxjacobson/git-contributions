@@ -1002,7 +1002,7 @@ func (m model) View() string {
 		}
 	}
 
-	return m.center(m.headingView()) + "\n" + m.center(m.breadcrumbBar()) + "\n" + m.center(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))) + "\n" + m.center(m.footer())
+	return m.row(m.headingView()) + "\n" + m.row(m.breadcrumbBar()) + "\n" + m.row(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))) + "\n" + m.row(m.footer())
 }
 
 // contentWidth caps the layout width so very wide terminals get centered
@@ -1011,16 +1011,25 @@ func (m model) contentWidth() int {
 	return min(m.width, maxContentWidth)
 }
 
-// center pads content to the terminal width with equal space on both sides.
-func (m model) center(s string) string {
-	return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, s)
+// row pads one line of the layout to the full content width, left-aligned,
+// so text holds its column no matter how long its content is.
+func (m model) row(s string) string {
+	return lipgloss.NewStyle().Width(m.contentWidth()).Render(s)
 }
 
-// previewPane pads the preview and clamps it to the terminal height, so a
-// month with many contributors cannot push the footer off the top of the
-// screen.
+// previewWidth is the width the preview pane always takes: the content width
+// minus the list's third.
+func (m model) previewWidth() int {
+	w := m.contentWidth()
+	return w - w/3
+}
+
+// previewPane pads the preview to its fixed width and clamps it to the
+// terminal height, so a month with many contributors cannot push the footer
+// off the top of the screen, and the layout does not shift as the selection
+// changes.
 func (m model) previewPane(preview string) string {
-	return lipgloss.NewStyle().MaxHeight(m.height - 3).Render(previewStyle.Render(preview))
+	return lipgloss.NewStyle().Width(m.previewWidth()).MaxHeight(m.height - 3).Render(previewStyle.Render(preview))
 }
 
 // RunUI runs the TUI over an already-loaded history.
