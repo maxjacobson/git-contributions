@@ -1,8 +1,7 @@
 # Notes for coding agents
 
-A Go rewrite of the fish script at ~/.local/bin/git-contributions: a terminal
-UI for browsing commit history by month, built with charm (bubbletea,
-bubbles, lipgloss).
+A terminal UI for browsing commit history by month, built with charm
+(bubbletea, bubbles, lipgloss).
 
 ## What it does
 
