@@ -137,12 +137,12 @@ func (m loaderModel) View() string {
 	return m.place(content)
 }
 
-// heading is the project name above the progress, blank when unknown.
+// heading names the project above the progress, blank when unknown.
 func (m loaderModel) heading() string {
 	if m.project == "" {
 		return ""
 	}
-	return titleStyle.Render(m.project) + "\n\n"
+	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project) + "\n\n"
 }
 
 func (m loaderModel) place(content string) string {

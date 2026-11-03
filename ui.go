@@ -220,7 +220,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.height = msg.Height
 		m.width = msg.Width
-		m.list.SetSize(m.contentWidth()/3, msg.Height-2)
+		m.list.SetSize(m.contentWidth()/3, msg.Height-3)
 		m.resizeDiff()
 		if m.mode == modeCommits && m.showDiff && m.diffHash != "" {
 			m.loadDiff(m.diffHash)
@@ -351,9 +351,10 @@ func (m model) diffPaneWidth() int {
 }
 
 // diffPaneHeight is the height available for the diff viewport, leaving room
-// for the breadcrumb bar, the footer, the pane border and padding.
+// for the heading, the breadcrumb bar, the footer, the pane border and
+// padding.
 func (m model) diffPaneHeight() int {
-	h := m.height - 6
+	h := m.height - 7
 	if h < 1 {
 		h = 1
 	}
@@ -544,9 +545,6 @@ func topPeriod(period string) string {
 // current selection.
 func (m model) breadcrumbParts() []string {
 	var parts []string
-	if m.project != "" {
-		parts = append(parts, m.project)
-	}
 	switch m.mode {
 	case modeMonths, modeYears:
 		parts = append(parts, topPeriodLabel(m.mode))
@@ -582,6 +580,14 @@ func topPeriodLabel(m mode) string {
 		return "Years"
 	}
 	return "Months"
+}
+
+// headingView names the project above the breadcrumb bar.
+func (m model) headingView() string {
+	if m.project == "" {
+		return ""
+	}
+	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project)
 }
 
 // breadcrumbBar renders the breadcrumb across the top of the screen.
@@ -996,7 +1002,7 @@ func (m model) View() string {
 		}
 	}
 
-	return m.center(m.breadcrumbBar()) + "\n" + m.center(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))) + "\n" + m.center(m.footer())
+	return m.center(m.headingView()) + "\n" + m.center(m.breadcrumbBar()) + "\n" + m.center(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))) + "\n" + m.center(m.footer())
 }
 
 // contentWidth caps the layout width so very wide terminals get centered
@@ -1014,7 +1020,7 @@ func (m model) center(s string) string {
 // month with many contributors cannot push the footer off the top of the
 // screen.
 func (m model) previewPane(preview string) string {
-	return lipgloss.NewStyle().MaxHeight(m.height - 2).Render(previewStyle.Render(preview))
+	return lipgloss.NewStyle().MaxHeight(m.height - 3).Render(previewStyle.Render(preview))
 }
 
 // RunUI runs the TUI over an already-loaded history.

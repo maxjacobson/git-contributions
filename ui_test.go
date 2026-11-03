@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -64,8 +65,11 @@ func TestBreadcrumbParts(t *testing.T) {
 		project: "rubocop",
 		list:    list.New([]list.Item{periodItem{summary: PeriodSummary{Period: "2024-03"}}}, list.NewDefaultDelegate(), 20, 5),
 	}
-	if got := withProject.breadcrumbParts(); !reflect.DeepEqual(got, []string{"rubocop", "Months", "March 2024"}) {
+	if got := withProject.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Months", "March 2024"}) {
 		t.Errorf("project breadcrumb: got %v", got)
+	}
+	if got := withProject.headingView(); !strings.Contains(got, "contributions to ") || !strings.Contains(got, "rubocop") {
+		t.Errorf("heading: got %q, want it to name the project", got)
 	}
 }
 
