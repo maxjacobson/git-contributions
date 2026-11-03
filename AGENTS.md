@@ -10,7 +10,7 @@ Two top-level period views, months (default) and years, switched with `y`
 and `m`. Either period drills down through three levels, each with a preview
 pane on the right. A breadcrumb bar spans the top of the screen instead of a
 list title or preview header; its leaf is the current selection, so it
-changes as the cursor moves (eg "Years > 2026 > Payments Team"):
+changes as the cursor moves (eg "rubocop ❯ Years ❯ 2026 ❯ Payments Team"):
 
 1. Months or years, newest first; the preview lists the period's
    contributors with commit counts, busiest first

@@ -590,7 +590,7 @@ func (m model) breadcrumbBar() string {
 	var b strings.Builder
 	for i, part := range parts {
 		if i > 0 {
-			b.WriteString(footerStyle.Render(" > "))
+			b.WriteString(footerStyle.Render(" ❯ "))
 		}
 		if i == len(parts)-1 {
 			b.WriteString(titleStyle.Render(part))
