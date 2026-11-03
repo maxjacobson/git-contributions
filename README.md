@@ -3,9 +3,10 @@
 Browse a repository's commit history by month in a terminal UI, built with
 [charm](https://charm.sh) (bubbletea, bubbles, lipgloss).
 
-**This project is vibecoded**: it was written by an AI coding agent
-([Crush](https://charm.land/blog/crush)) with MJ as the client and tech
-direction. See `AGENTS.md` for the working notes.
+> [!NOTE]
+> This is a vibecoded, just for fun little project. I am sure it is very
+> imperfect in many ways, but it's kind of fun to be able to conjure things
+> like this into existence.
 
 ## What it does
 
