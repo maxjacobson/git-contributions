@@ -37,6 +37,8 @@ Behavioral decisions worth remembering:
   `mailmap.file` passed explicitly, since git does not discover `.mailmap`
   when `--git-dir` points inside `.jj`
 - Dependabot commits are excluded by default; `--include-dependabot` opts in
+- Months shown to the user are written as "June 2020", never "2020-06";
+  monthLabel in ui.go is the one way to format them
 - The period kind (month vs year) is inferred from the period string's
   length ("2024-03" vs "2024"), so esc returns to whichever list the user
   drilled out of without extra state

@@ -129,7 +129,7 @@ func (m loaderModel) View() string {
 	}
 	label := fmt.Sprintf("%s of %s commits", comma(m.seen), comma(m.total))
 	if len(m.oldest) >= 7 {
-		label += " · back to " + m.oldest[:7]
+		label += " · back to " + monthLabel(m.oldest[:7])
 	}
 	content := m.bar.ViewAs(frac) + "\n\n" + footerStyle.Render(label)
 	return m.place(content)
