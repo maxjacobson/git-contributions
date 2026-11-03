@@ -18,6 +18,7 @@ import (
 )
 
 const listWidth = 32
+const maxContentWidth = 140
 
 type mode int
 
@@ -200,7 +201,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.height = msg.Height
 		m.width = msg.Width
-		m.list.SetSize(msg.Width/3, msg.Height-2)
+		m.list.SetSize(m.contentWidth()/3, msg.Height-2)
 		m.resizeDiff()
 		if m.mode == modeCommits && m.showDiff && m.diffHash != "" {
 			m.loadDiff(m.diffHash)
@@ -326,7 +327,8 @@ func (m model) selectedCommitHash() string {
 // diffPaneWidth is the width available for diff text inside the preview,
 // leaving room for the pane border and padding.
 func (m model) diffPaneWidth() int {
-	return m.width - m.width/3 - 6
+	w := m.contentWidth()
+	return w - w/3 - 6
 }
 
 // diffPaneHeight is the height available for the diff viewport, leaving room
@@ -972,7 +974,18 @@ func (m model) View() string {
 		}
 	}
 
-	return m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview)) + "\n" + m.footer()
+	return m.center(m.breadcrumbBar()) + "\n" + m.center(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview))) + "\n" + m.center(m.footer())
+}
+
+// contentWidth caps the layout width so very wide terminals get centered
+// margins instead of stretched panes.
+func (m model) contentWidth() int {
+	return min(m.width, maxContentWidth)
+}
+
+// center pads content to the terminal width with equal space on both sides.
+func (m model) center(s string) string {
+	return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, s)
 }
 
 // previewPane pads the preview and clamps it to the terminal height, so a
