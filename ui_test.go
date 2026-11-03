@@ -58,4 +58,22 @@ func TestBreadcrumbParts(t *testing.T) {
 	if got := teamCommits.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Months", "March 2024", "Payments", "Fix the thing"}) {
 		t.Errorf("team commits breadcrumb: got %v", got)
 	}
+
+	withProject := model{
+		mode:    modeMonths,
+		project: "rubocop",
+		list:    list.New([]list.Item{periodItem{summary: PeriodSummary{Period: "2024-03"}}}, list.NewDefaultDelegate(), 20, 5),
+	}
+	if got := withProject.breadcrumbParts(); !reflect.DeepEqual(got, []string{"rubocop", "Months", "March 2024"}) {
+		t.Errorf("project breadcrumb: got %v", got)
+	}
+}
+
+func TestProjectName(t *testing.T) {
+	if got := projectName(&Repo{Dir: "/Users/max/src/github/maxjacobson/rubocop"}); got != "rubocop" {
+		t.Errorf("jj repo: got %q, want %q", got, "rubocop")
+	}
+	if got := projectName(&Repo{Dir: "."}); got != "" {
+		t.Errorf("bare dot dir: got %q, want empty", got)
+	}
 }

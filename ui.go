@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -173,6 +175,7 @@ type model struct {
 	repo          *Repo
 	slug          string
 	metadata      Metadata
+	project       string
 }
 
 func newModel(commits []Commit, months []PeriodSummary, repo *Repo, slug string, metadata Metadata) model {
@@ -188,7 +191,23 @@ func newModel(commits []Commit, months []PeriodSummary, repo *Repo, slug string,
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 
-	return model{commits: commits, months: months, years: SummarizeYears(commits), list: l, mode: modeMonths, repo: repo, slug: slug, metadata: metadata}
+	return model{commits: commits, months: months, years: SummarizeYears(commits), list: l, mode: modeMonths, repo: repo, slug: slug, metadata: metadata, project: projectName(repo)}
+}
+
+// projectName names the repo after the directory it lives in: the jj
+// workspace root when there is one, else the current directory.
+func projectName(repo *Repo) string {
+	dir := repo.Dir
+	if dir == "" {
+		if wd, err := os.Getwd(); err == nil {
+			dir = wd
+		}
+	}
+	name := filepath.Base(dir)
+	if name == "." || name == "/" {
+		return ""
+	}
+	return name
 }
 
 func (m model) Init() tea.Cmd {
@@ -525,6 +544,9 @@ func topPeriod(period string) string {
 // current selection.
 func (m model) breadcrumbParts() []string {
 	var parts []string
+	if m.project != "" {
+		parts = append(parts, m.project)
+	}
 	switch m.mode {
 	case modeMonths, modeYears:
 		parts = append(parts, topPeriodLabel(m.mode))
