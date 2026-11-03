@@ -131,7 +131,7 @@ func (m loaderModel) View() string {
 	if len(m.oldest) >= 7 {
 		label += " · back to " + monthLabel(m.oldest[:7])
 	}
-	content := m.bar.ViewAs(frac) + "\n\n" + footerStyle.Render(label)
+	content := m.bar.ViewAs(frac) + "\n\n" + lipgloss.NewStyle().Width(m.bar.Width).Render(footerStyle.Render(label))
 	return m.place(content)
 }
 
