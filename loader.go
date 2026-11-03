@@ -142,7 +142,7 @@ func (m loaderModel) heading() string {
 	if m.project == "" {
 		return ""
 	}
-	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project) + "\n\n"
+	return footerStyle.Render("Crunching numbers for ") + titleStyle.Render(m.project) + "\n\n"
 }
 
 func (m loaderModel) place(content string) string {
