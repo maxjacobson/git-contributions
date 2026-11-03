@@ -11,10 +11,13 @@ func main() {
 	flag.Parse()
 
 	repo := DetectRepo()
-	commits, err := repo.LoadCommits()
+	commits, aborted, err := loadCommits(repo)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	if aborted {
+		return
 	}
 
 	if !*includeDependabot {

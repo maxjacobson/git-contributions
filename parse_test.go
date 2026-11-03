@@ -130,3 +130,58 @@ func TestParseLogEmpty(t *testing.T) {
 		t.Errorf("got %v, want no commits", commits)
 	}
 }
+
+func TestLogParserFeedingLinesMatchesParseLog(t *testing.T) {
+	output := strings.Join([]string{
+		"2024-03-15;;;Alice;;;hash1;;;abc;;;Fix the thing",
+		" 3 files changed, 10 insertions(+), 2 deletions(-)",
+		"",
+		"2024-03-20;;;Bob;;;hash2;;;",
+		"",
+		"2024-02-01;;;Alice;;;hash3;;;def;;;Add a thing",
+		" 1 file changed, 5 insertions(+)",
+		"",
+	}, "\n")
+
+	p := &logParser{}
+	for _, line := range strings.Split(output, "\n") {
+		p.Feed(line)
+	}
+	commits, err := p.Finish()
+	if err != nil {
+		t.Fatalf("Finish returned error: %v", err)
+	}
+
+	want, err := ParseLog(output)
+	if err != nil {
+		t.Fatalf("ParseLog returned error: %v", err)
+	}
+	if !reflect.DeepEqual(commits, want) {
+		t.Errorf("got %v, want %v", commits, want)
+	}
+	if p.Seen != 3 {
+		t.Errorf("got Seen %d, want 3", p.Seen)
+	}
+	if p.Oldest != "2024-02-01" {
+		t.Errorf("got Oldest %q, want 2024-02-01", p.Oldest)
+	}
+}
+
+func TestLogParserTracksProgressPerLine(t *testing.T) {
+	p := &logParser{}
+	p.Feed("2024-03-15;;;Alice;;;hash1;;;abc;;;Fix the thing")
+	if p.Seen != 1 || p.Oldest != "2024-03-15" {
+		t.Fatalf("got Seen %d, Oldest %q, want 1 and 2024-03-15", p.Seen, p.Oldest)
+	}
+	p.Feed("2024-03-16;;;Alice;;;hash2;;;abc;;;More")
+	if p.Seen != 2 || p.Oldest != "2024-03-16" {
+		t.Fatalf("got Seen %d, Oldest %q, want 2 and 2024-03-16", p.Seen, p.Oldest)
+	}
+	commits, err := p.Finish()
+	if err != nil {
+		t.Fatalf("Finish returned error: %v", err)
+	}
+	if len(commits) != 0 {
+		t.Errorf("got %v, want no commits", commits)
+	}
+}

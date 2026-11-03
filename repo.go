@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -54,22 +55,36 @@ func DetectRepo() *Repo {
 	return &Repo{}
 }
 
-// LogOutput runs git log and returns its raw output.
-func (r *Repo) LogOutput() (string, error) {
+// logArgs builds the git log command line whose output logParser understands.
+func (r *Repo) logArgs() []string {
 	args := r.gitArgs("log")
 	if r.StartCommit != "" {
 		args = append(args, r.StartCommit)
 	}
-	args = append(args, "--pretty=tformat:%ad;;;%aN;;;%H;;;%P;;;%s", "--date=format:%Y-%m-%d", "--shortstat")
+	return append(args, "--pretty=tformat:%ad;;;%aN;;;%H;;;%P;;;%s", "--date=format:%Y-%m-%d", "--shortstat")
+}
 
+// CountCommits returns how many commits the history walk will visit, so the
+// loading view can show a percentage.
+func (r *Repo) CountCommits() (int, error) {
+	args := r.gitArgs("rev-list", "--count")
+	if r.StartCommit != "" {
+		args = append(args, r.StartCommit)
+	} else {
+		args = append(args, "HEAD")
+	}
 	out, err := r.runGit(args...)
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("git log failed: %s", strings.TrimSpace(string(exitErr.Stderr)))
+			return 0, fmt.Errorf("git rev-list failed: %s", strings.TrimSpace(string(exitErr.Stderr)))
 		}
-		return "", fmt.Errorf("git log failed: %w", err)
+		return 0, fmt.Errorf("git rev-list failed: %w", err)
 	}
-	return string(out), nil
+	count, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("git rev-list count: %w", err)
+	}
+	return count, nil
 }
 
 // gitArgs builds a git command line with the repo's global options.
@@ -125,15 +140,6 @@ func (r *Repo) MetadataFile() string {
 		return ""
 	}
 	return filepath.Join(strings.TrimSpace(string(out)), "git-contributions-metadata")
-}
-
-// LoadCommits fetches and parses the repo's commit history.
-func (r *Repo) LoadCommits() ([]Commit, error) {
-	output, err := r.LogOutput()
-	if err != nil {
-		return nil, err
-	}
-	return ParseLog(output)
 }
 
 // DiffOutput returns the colorized output of showing one commit. Delta, when

@@ -982,7 +982,7 @@ func (m model) previewPane(preview string) string {
 	return lipgloss.NewStyle().MaxHeight(m.height - 2).Render(previewStyle.Render(preview))
 }
 
-// RunUI loads the repo's history, filters it, and runs the TUI.
+// RunUI runs the TUI over an already-loaded history.
 func RunUI(w io.Writer, commits []Commit, months []PeriodSummary, repo *Repo, slug string, metadata Metadata) error {
 	if len(months) == 0 {
 		fmt.Fprintln(w, "No commits found.")
