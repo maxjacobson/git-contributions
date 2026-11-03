@@ -42,6 +42,7 @@ type loaderModel struct {
 	walker  *walker
 	width   int
 	height  int
+	project string
 }
 
 func newLoaderModel(repo *Repo) loaderModel {
@@ -51,6 +52,7 @@ func newLoaderModel(repo *Repo) loaderModel {
 		repo:    repo,
 		spinner: s,
 		bar:     progress.New(progress.WithDefaultGradient()),
+		project: projectName(repo),
 	}
 }
 
@@ -121,7 +123,7 @@ func (m loaderModel) View() string {
 		return m.place(errorStyle.Render("error: " + m.err.Error()))
 	}
 	if !m.counted {
-		return m.place(m.spinner.View() + " counting commits…")
+		return m.place(m.heading() + m.spinner.View() + " counting commits…")
 	}
 	frac := 1.0
 	if m.total > 0 {
@@ -131,8 +133,16 @@ func (m loaderModel) View() string {
 	if len(m.oldest) >= 7 {
 		label += " · back to " + monthLabel(m.oldest[:7])
 	}
-	content := m.bar.ViewAs(frac) + "\n\n" + lipgloss.NewStyle().Width(m.bar.Width).Render(footerStyle.Render(label))
+	content := m.heading() + m.bar.ViewAs(frac) + "\n\n" + lipgloss.NewStyle().Width(m.bar.Width).Render(footerStyle.Render(label))
 	return m.place(content)
+}
+
+// heading is the project name above the progress, blank when unknown.
+func (m loaderModel) heading() string {
+	if m.project == "" {
+		return ""
+	}
+	return titleStyle.Render(m.project) + "\n\n"
 }
 
 func (m loaderModel) place(content string) string {
