@@ -364,6 +364,7 @@ func (m model) diffPaneHeight() int {
 func (m *model) resizeDiff() {
 	m.diffViewport.Width = m.diffPaneWidth()
 	m.diffViewport.Height = m.diffPaneHeight()
+	m.diffViewport.SetHorizontalStep(m.diffPaneWidth() / 2)
 	m.diffViewport.SetContent(m.diffOutput)
 }
 
