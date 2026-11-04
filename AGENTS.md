@@ -48,8 +48,9 @@ Behavioral decisions worth remembering:
   transition selects explicitly)
 - The list's own filtering (`/`) is disabled; MJ does not want it
 - Contributor metadata lives repo-locally, outside history:
-  `.jj/git-contributions-metadata` (jj) or `.git/git-contributions-metadata`
-  (git). JSON, keyed by mailmapped name, with active/team/aliases; the
+  `.jj/git-contributions-metadata.json` (jj) or
+  `.git/git-contributions-metadata.json` (git). JSON, keyed by mailmapped
+  name, with active/team/aliases; the
   README has the schema. `e` in the contributor view opens a form to edit a
   profile (tab and shift+tab cycle fields; on team, ↓/↑ picks from known
   teams or "(new team…)"; space, ←/→, or h/l flips the yes/no radio; enter

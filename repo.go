@@ -133,13 +133,13 @@ func ParseGitHubSlug(url string) string {
 // MetadataFile returns the repo-local contributor metadata file location.
 func (r *Repo) MetadataFile() string {
 	if r.IsJJ {
-		return filepath.Join(r.Dir, ".jj", "git-contributions-metadata")
+		return filepath.Join(r.Dir, ".jj", "git-contributions-metadata.json")
 	}
 	out, err := r.runGit("rev-parse", "--absolute-git-dir")
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(strings.TrimSpace(string(out)), "git-contributions-metadata")
+	return filepath.Join(strings.TrimSpace(string(out)), "git-contributions-metadata.json")
 }
 
 // DiffOutput returns the colorized output of showing one commit. Delta, when

@@ -20,7 +20,7 @@ func TestTeamFlowEndToEnd(t *testing.T) {
 		"Bob": {"team": "Core", "active": false},
 		"Carol": {"team": "Platform", "active": true}
 	}`
-	metadataPath := filepath.Join(dir, ".git", "git-contributions-metadata")
+	metadataPath := filepath.Join(dir, ".git", "git-contributions-metadata.json")
 	os.WriteFile(metadataPath, []byte(content), 0o644)
 
 	repo := DetectRepo()

@@ -34,8 +34,8 @@ not counted at all.
 You can annotate contributors with teams and active status.
 The data lives entirely outside the repo's history, in a repo-local file:
 
-- jj repos: `.jj/git-contributions-metadata`
-- git repos: `.git/git-contributions-metadata`
+- jj repos: `.jj/git-contributions-metadata.json`
+- git repos: `.git/git-contributions-metadata.json`
 
 Edit it by hand, or press `e` on a contributor in the contributor view to
 fill in the form (tab and shift+tab move between fields; on the team field,
