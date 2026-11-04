@@ -160,7 +160,7 @@ type model struct {
 	commits       []Commit
 	list          list.Model
 	diffViewport  viewport.Model
-	diffWrapped   string
+	diffOutput    string
 	diffHash      string
 	showDiff      bool
 	mode          mode
@@ -313,7 +313,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.mode == modeCommits && m.showDiff {
 			switch msg.String() {
-			case "j", "k", "up", "down", " ", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
+			case "j", "k", "up", "down", "h", "l", "left", "right", " ", "pgup", "pgdown", "ctrl+d", "ctrl+u", "home", "end":
 				var cmd tea.Cmd
 				m.diffViewport, cmd = m.diffViewport.Update(msg)
 				return m, cmd
@@ -359,33 +359,40 @@ func (m model) diffPaneHeight() int {
 	return h
 }
 
-// resizeDiff refits the viewport and re-wraps the captured diff at the new
-// width.
+// resizeDiff refits the viewport to the new size. The captured diff is kept
+// unwrapped so long lines can be scrolled into view horizontally.
 func (m *model) resizeDiff() {
 	m.diffViewport.Width = m.diffPaneWidth()
 	m.diffViewport.Height = m.diffPaneHeight()
-	m.diffViewport.SetContent(ansi.Hardwrap(m.diffWrapped, m.diffPaneWidth(), true))
+	m.diffViewport.SetContent(m.diffOutput)
 }
 
 // loadDiff captures the colorized output of showing one commit and puts it
 // in the viewport.
 func (m *model) loadDiff(hash string) {
 	m.diffHash = hash
-	m.diffWrapped = ""
+	m.diffOutput = ""
 	if hash == "" {
 		m.resizeDiff()
 		return
 	}
-	output, err := m.repo.DiffOutput(hash, m.diffPaneWidth())
+	output, err := m.repo.DiffOutput(hash, diffCaptureWidth())
 	if err != nil {
-		m.diffWrapped = "Could not load diff: " + err.Error()
+		m.diffOutput = "Could not load diff: " + err.Error()
 	} else if strings.TrimSpace(output) == "" {
-		m.diffWrapped = "No diff shown for merge commits."
+		m.diffOutput = "No diff shown for merge commits."
 	} else {
-		m.diffWrapped = fillBackgrounds(strings.TrimSuffix(output, "\n"), m.diffPaneWidth())
+		m.diffOutput = fillBackgrounds(strings.TrimSuffix(output, "\n"), diffCaptureWidth())
 	}
 	m.resizeDiff()
 	m.diffViewport.GotoTop()
+}
+
+// diffCaptureWidth is the width delta is asked to lay out at: wider than the
+// pane so delta does not hard wrap lines, since the viewport scrolls
+// horizontally instead, and wide enough that real diff lines stay unwrapped.
+func diffCaptureWidth() int {
+	return 500
 }
 
 // fillBackgrounds expands delta's erase-to-end-of-line sequences into literal
