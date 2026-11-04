@@ -364,7 +364,7 @@ func (m model) diffPaneHeight() int {
 func (m *model) resizeDiff() {
 	m.diffViewport.Width = m.diffPaneWidth()
 	m.diffViewport.Height = m.diffPaneHeight()
-	m.diffViewport.SetHorizontalStep(m.diffPaneWidth() / 2)
+	m.diffViewport.SetHorizontalStep(1)
 	m.diffViewport.SetContent(m.diffOutput)
 }
 
@@ -383,7 +383,7 @@ func (m *model) loadDiff(hash string) {
 	} else if strings.TrimSpace(output) == "" {
 		m.diffOutput = "No diff shown for merge commits."
 	} else {
-		m.diffOutput = fillBackgrounds(strings.TrimSuffix(output, "\n"), diffCaptureWidth())
+		m.diffOutput = fillBackgrounds(strings.TrimSuffix(output, "\n"), m.diffPaneWidth())
 	}
 	m.resizeDiff()
 	m.diffViewport.GotoTop()
@@ -399,13 +399,32 @@ func diffCaptureWidth() int {
 // fillBackgrounds expands delta's erase-to-end-of-line sequences into literal
 // spaces, since the TUI renderer does not honor them: without this, colored
 // line backgrounds stop at the last character instead of running edge to
-// edge.
-func fillBackgrounds(s string, width int) string {
+// edge. Lines are padded to the widest natural line in the output, never
+// narrower than minWidth, so scrolling right stops at the real content
+// instead of wading through padding.
+func fillBackgrounds(s string, minWidth int) string {
 	lines := strings.Split(s, "\n")
+	width := minWidth
+	for _, line := range lines {
+		if w := naturalLineWidth(line); w > width {
+			width = w
+		}
+	}
 	for i, line := range lines {
 		lines[i] = fillLineBackground(line, width)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// naturalLineWidth is the visible width of a line, ignoring the padding that
+// follows an erase-to-end-of-line sequence.
+func naturalLineWidth(line string) int {
+	for _, seq := range []string{"\x1b[0K", "\x1b[K"} {
+		if idx := strings.Index(line, seq); idx != -1 {
+			return ansi.StringWidth(line[:idx])
+		}
+	}
+	return ansi.StringWidth(line)
 }
 
 func fillLineBackground(line string, width int) string {

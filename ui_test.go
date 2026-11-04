@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestMonthLabel(t *testing.T) {
@@ -79,5 +80,27 @@ func TestProjectName(t *testing.T) {
 	}
 	if got := projectName(&Repo{Dir: "."}); got != "" {
 		t.Errorf("bare dot dir: got %q, want empty", got)
+	}
+}
+
+func TestFillBackgrounds(t *testing.T) {
+	input := strings.Join([]string{"ab\x1b[0K", "abcdef\x1b[0K"}, "\n")
+	got := strings.Split(fillBackgrounds(input, 4), "\n")
+	for i, line := range got {
+		if w := ansi.StringWidth(line); w != 6 {
+			t.Errorf("line %d: got width %d, want padded to the widest line (6)", i, w)
+		}
+	}
+
+	got = strings.Split(fillBackgrounds("ab\x1b[0K", 10), "\n")
+	if w := ansi.StringWidth(got[0]); w != 10 {
+		t.Errorf("floor: got width %d, want padded to minWidth (10)", w)
+	}
+
+	if got := naturalLineWidth("ab\x1b[0K ignore"); got != 2 {
+		t.Errorf("natural width with erase sequence: got %d, want 2", got)
+	}
+	if got := naturalLineWidth("plain"); got != 5 {
+		t.Errorf("natural width without erase sequence: got %d, want 5", got)
 	}
 }
