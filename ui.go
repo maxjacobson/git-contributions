@@ -226,6 +226,55 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case tea.MouseMsg:
+		if m.mode == modeForm {
+			return m, nil
+		}
+		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft && msg.X < listWidth {
+			idx, ok := m.listIndexAt(msg.Y)
+			if !ok {
+				return m, nil
+			}
+			m.list.Select(idx)
+			if m.mode == modeCommits {
+				if item, ok := m.list.SelectedItem().(commitItem); ok {
+					if m.showDiff && m.diffHash == item.commit.Hash {
+						m.showDiff = false
+						return m, nil
+					}
+					m.showDiff = true
+					if m.diffHash != item.commit.Hash {
+						m.loadDiff(item.commit.Hash)
+					} else {
+						m.diffViewport.GotoTop()
+					}
+				}
+				return m, nil
+			}
+			return m.drillIn()
+		}
+		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
+			if m.mode == modeCommits && m.showDiff {
+				var cmd tea.Cmd
+				m.diffViewport, cmd = m.diffViewport.Update(msg)
+				return m, cmd
+			}
+			previousHash := m.selectedCommitHash()
+			key := tea.KeyMsg{Type: tea.KeyDown}
+			if msg.Button == tea.MouseButtonWheelUp {
+				key = tea.KeyMsg{Type: tea.KeyUp}
+			}
+			var cmd tea.Cmd
+			m.list, cmd = m.list.Update(key)
+			if m.mode == modeCommits && m.showDiff {
+				if hash := m.selectedCommitHash(); hash != previousHash && hash != "" {
+					m.loadDiff(hash)
+				}
+			}
+			return m, cmd
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		if m.mode == modeForm {
 			return m.updateForm(msg)
@@ -274,30 +323,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.switchToMonths()
 			}
 		case "enter":
-			switch m.mode {
-			case modeMonths, modeYears:
-				if summary, ok := m.selectedPeriod(); ok {
-					return m.switchToAuthors(summary.Period)
-				}
-			case modeAuthors:
-				if item, ok := m.list.SelectedItem().(authorItem); ok {
-					return m.switchToCommits(item.stats.Author)
-				}
-			case modeTeams:
-				if item, ok := m.list.SelectedItem().(teamItem); ok {
-					return m.switchToTeamCommits(item.summary.Team)
-				}
-			case modeCommits:
-				if item, ok := m.list.SelectedItem().(commitItem); ok {
-					if m.showDiff {
-						m.showDiff = false
-					} else {
-						m.showDiff = true
-						if m.diffHash != item.commit.Hash {
-							m.loadDiff(item.commit.Hash)
-						}
-						m.diffViewport.GotoTop()
+			if m.mode != modeCommits {
+				return m.drillIn()
+			}
+			if item, ok := m.list.SelectedItem().(commitItem); ok {
+				if m.showDiff {
+					m.showDiff = false
+				} else {
+					m.showDiff = true
+					if m.diffHash != item.commit.Hash {
+						m.loadDiff(item.commit.Hash)
 					}
+					m.diffViewport.GotoTop()
 				}
 			}
 		case "o":
@@ -330,6 +367,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, cmd
+}
+
+func (m model) drillIn() (tea.Model, tea.Cmd) {
+	switch m.mode {
+	case modeMonths, modeYears:
+		if summary, ok := m.selectedPeriod(); ok {
+			return m.switchToAuthors(summary.Period)
+		}
+	case modeAuthors:
+		if item, ok := m.list.SelectedItem().(authorItem); ok {
+			return m.switchToCommits(item.stats.Author)
+		}
+	case modeTeams:
+		if item, ok := m.list.SelectedItem().(teamItem); ok {
+			return m.switchToTeamCommits(item.summary.Team)
+		}
+	}
+	return m, nil
+}
+
+const listItemsTop = 3
+
+const listItemRows = 3
+
+func (m model) listIndexAt(y int) (int, bool) {
+	row := y - listItemsTop
+	if row < 0 {
+		return 0, false
+	}
+	idx := m.list.Paginator.Page*m.list.Paginator.PerPage + row/listItemRows
+	if idx >= len(m.list.VisibleItems()) {
+		return 0, false
+	}
+	return idx, true
 }
 
 // selectedCommitHash returns the hash of the selected commit in the commit
@@ -1043,6 +1114,6 @@ func RunUI(w io.Writer, commits []Commit, months []PeriodSummary, repo *Repo, sl
 		fmt.Fprintln(w, "No commits found.")
 		return nil
 	}
-	_, err := tea.NewProgram(newModel(commits, months, repo, slug, metadata), tea.WithAltScreen()).Run()
+	_, err := tea.NewProgram(newModel(commits, months, repo, slug, metadata), tea.WithAltScreen(), tea.WithMouseCellMotion()).Run()
 	return err
 }
