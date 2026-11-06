@@ -33,6 +33,15 @@ func TestDayLabel(t *testing.T) {
 	}
 }
 
+func TestDayLabelWithYear(t *testing.T) {
+	if got := dayLabelWithYear("2025-12-30"); got != "Dec 30, 2025" {
+		t.Errorf("got %q, want %q", got, "Dec 30, 2025")
+	}
+	if got := dayLabelWithYear("nonsense"); got != "nonsense" {
+		t.Errorf("got %q, want it passed through", got)
+	}
+}
+
 func TestBreadcrumbParts(t *testing.T) {
 	months := model{
 		mode: modeMonths,

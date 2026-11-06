@@ -130,6 +130,14 @@ func dayLabel(day string) string {
 	return t.Format("Jan 2")
 }
 
+func dayLabelWithYear(day string) string {
+	t, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		return day
+	}
+	return t.Format("Jan 2, 2006")
+}
+
 type form struct {
 	author          string
 	inputs          []textinput.Model
@@ -1062,7 +1070,7 @@ func renderCommitPreview(item commitItem) string {
 	if parentCount(c) >= 2 {
 		fmt.Fprintf(&b, "Merge commit\n\n")
 	}
-	fmt.Fprintf(&b, "%-12s %s\n", "Date", c.Day)
+	fmt.Fprintf(&b, "%-12s %s\n", "Date", dayLabelWithYear(c.Day))
 	fmt.Fprintf(&b, "%-12s %s\n", "Author", c.Author)
 	fmt.Fprintf(&b, "%-12s %s\n", "Hash", shortHash(c.Hash))
 	fmt.Fprintf(&b, "%-12s +%s\n", "Insertions", WithUnit(c.Insertions, "line"))
