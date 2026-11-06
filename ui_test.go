@@ -38,7 +38,7 @@ func TestBreadcrumbParts(t *testing.T) {
 		mode: modeMonths,
 		list: list.New([]list.Item{periodItem{summary: PeriodSummary{Period: "2024-03"}}}, list.NewDefaultDelegate(), 20, 5),
 	}
-	if got := months.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Months", "March 2024"}) {
+	if got := months.breadcrumbParts(); !reflect.DeepEqual(got, []string{"March 2024"}) {
 		t.Errorf("months breadcrumb: got %v", got)
 	}
 
@@ -47,7 +47,7 @@ func TestBreadcrumbParts(t *testing.T) {
 		currentPeriod: "2024",
 		list:          list.New([]list.Item{authorItem{stats: AuthorStats{Author: "Alice"}}}, list.NewDefaultDelegate(), 20, 5),
 	}
-	if got := authors.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Years", "2024", "Alice"}) {
+	if got := authors.breadcrumbParts(); !reflect.DeepEqual(got, []string{"2024", "Alice"}) {
 		t.Errorf("authors breadcrumb: got %v", got)
 	}
 
@@ -57,7 +57,7 @@ func TestBreadcrumbParts(t *testing.T) {
 		currentTeam:   "Payments",
 		list:          list.New([]list.Item{commitItem{commit: Commit{Subject: "Fix the thing"}}}, list.NewDefaultDelegate(), 20, 5),
 	}
-	if got := teamCommits.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Months", "March 2024", "Payments", "Fix the thing"}) {
+	if got := teamCommits.breadcrumbParts(); !reflect.DeepEqual(got, []string{"March 2024", "Payments", "Fix the thing"}) {
 		t.Errorf("team commits breadcrumb: got %v", got)
 	}
 
@@ -66,11 +66,57 @@ func TestBreadcrumbParts(t *testing.T) {
 		project: "rubocop",
 		list:    list.New([]list.Item{periodItem{summary: PeriodSummary{Period: "2024-03"}}}, list.NewDefaultDelegate(), 20, 5),
 	}
-	if got := withProject.breadcrumbParts(); !reflect.DeepEqual(got, []string{"Months", "March 2024"}) {
+	if got := withProject.breadcrumbParts(); !reflect.DeepEqual(got, []string{"March 2024"}) {
 		t.Errorf("project breadcrumb: got %v", got)
 	}
-	if got := withProject.headingView(); !strings.Contains(got, "contributions to ") || !strings.Contains(got, "rubocop") {
-		t.Errorf("heading: got %q, want it to name the project", got)
+	if got := withProject.headingView(); !strings.Contains(got, "contributions to ") || !strings.Contains(got, "rubocop") || !strings.Contains(got, "by month") {
+		t.Errorf("heading: got %q, want it to name the project by month", got)
+	}
+
+	yearCommits := model{
+		mode:          modeCommits,
+		currentPeriod: "2024",
+		project:       "rubocop",
+	}
+	if got := yearCommits.headingView(); !strings.Contains(got, "by year") {
+		t.Errorf("heading: got %q, want it to say by year", got)
+	}
+}
+
+func TestCrumbSpans(t *testing.T) {
+	authors := model{
+		mode:          modeAuthors,
+		currentPeriod: "2024",
+		list:          list.New([]list.Item{authorItem{stats: AuthorStats{Author: "Alice"}}}, list.NewDefaultDelegate(), 20, 5),
+	}
+	spans := authors.crumbSpans()
+	if len(spans) != 1 || spans[0] != (crumbSpan{start: 0, end: 4, kind: crumbPeriod}) {
+		t.Errorf("authors crumb spans: got %v, want one period span over \"2024\"", spans)
+	}
+	if kind, ok := authors.crumbAt(2); !ok || kind != crumbPeriod {
+		t.Errorf("crumbAt(2): got %d, %v, want crumbPeriod", kind, ok)
+	}
+	if _, ok := authors.crumbAt(5); ok {
+		t.Errorf("crumbAt(5): got a span, want none: \"Alice\" is not clickable")
+	}
+
+	teamCommits := model{
+		mode:          modeCommits,
+		currentPeriod: "2024-03",
+		currentTeam:   "Payments",
+		list:          list.New([]list.Item{commitItem{commit: Commit{Subject: "Fix the thing"}}}, list.NewDefaultDelegate(), 20, 5),
+	}
+	spans = teamCommits.crumbSpans()
+	if len(spans) != 2 || spans[0] != (crumbSpan{start: 0, end: 10, kind: crumbPeriod}) || spans[1] != (crumbSpan{start: 13, end: 21, kind: crumbTeam}) {
+		t.Errorf("team commits crumb spans: got %v, want period then team spans", spans)
+	}
+
+	months := model{
+		mode: modeMonths,
+		list: list.New([]list.Item{periodItem{summary: PeriodSummary{Period: "2024-03"}}}, list.NewDefaultDelegate(), 20, 5),
+	}
+	if spans := months.crumbSpans(); len(spans) != 0 {
+		t.Errorf("months crumb spans: got %v, want none", spans)
 	}
 }
 

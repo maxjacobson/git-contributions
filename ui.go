@@ -52,6 +52,8 @@ var (
 			BorderForeground(lipgloss.Color("39")).
 			Padding(1, 2)
 
+	crumbStyle = footerStyle.Underline(true)
+
 	formStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("39")).
@@ -230,28 +232,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.mode == modeForm {
 			return m, nil
 		}
-		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft && msg.X < listWidth {
-			idx, ok := m.listIndexAt(msg.Y)
-			if !ok {
-				return m, nil
-			}
-			m.list.Select(idx)
-			if m.mode == modeCommits {
-				if item, ok := m.list.SelectedItem().(commitItem); ok {
-					if m.showDiff && m.diffHash == item.commit.Hash {
-						m.showDiff = false
-						return m, nil
-					}
-					m.showDiff = true
-					if m.diffHash != item.commit.Hash {
-						m.loadDiff(item.commit.Hash)
-					} else {
-						m.diffViewport.GotoTop()
+		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+			if msg.Y == breadcrumbRow {
+				if kind, ok := m.crumbAt(msg.X); ok {
+					switch kind {
+					case crumbPeriod:
+						return m.switchToPeriod(m.currentPeriod)
+					case crumbAuthor:
+						return m.switchToAuthors(m.currentPeriod)
+					case crumbTeam:
+						return m.switchToTeams(m.currentPeriod)
 					}
 				}
 				return m, nil
 			}
-			return m.drillIn()
+			if msg.X < listWidth {
+				idx, ok := m.listIndexAt(msg.Y)
+				if !ok {
+					return m, nil
+				}
+				m.list.Select(idx)
+				if m.mode == modeCommits {
+					if item, ok := m.list.SelectedItem().(commitItem); ok {
+						if m.showDiff && m.diffHash == item.commit.Hash {
+							m.showDiff = false
+							return m, nil
+						}
+						m.showDiff = true
+						if m.diffHash != item.commit.Hash {
+							m.loadDiff(item.commit.Hash)
+						} else {
+							m.diffViewport.GotoTop()
+						}
+					}
+					return m, nil
+				}
+				return m.drillIn()
+			}
 		}
 		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown {
 			if m.mode == modeCommits && m.showDiff {
@@ -629,31 +646,22 @@ func (m model) switchToTeamCommits(team string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// topPeriod names the top-level list a period belongs to.
-func topPeriod(period string) string {
-	if isYear(period) {
-		return "Years"
-	}
-	return "Months"
-}
-
 // breadcrumbParts describes the path to the current view, ending with the
 // current selection.
 func (m model) breadcrumbParts() []string {
 	var parts []string
 	switch m.mode {
 	case modeMonths, modeYears:
-		parts = append(parts, topPeriodLabel(m.mode))
 		if summary, ok := m.selectedPeriod(); ok {
 			parts = append(parts, periodLabel(summary.Period))
 		}
 	case modeAuthors:
-		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod))
+		parts = append(parts, periodLabel(m.currentPeriod))
 		if item, ok := m.list.SelectedItem().(authorItem); ok {
 			parts = append(parts, item.stats.Author)
 		}
 	case modeTeams:
-		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod))
+		parts = append(parts, periodLabel(m.currentPeriod))
 		if item, ok := m.list.SelectedItem().(teamItem); ok {
 			parts = append(parts, item.summary.Team)
 		}
@@ -662,7 +670,7 @@ func (m model) breadcrumbParts() []string {
 		if m.currentTeam != "" {
 			leaf = m.currentTeam
 		}
-		parts = append(parts, topPeriod(m.currentPeriod), periodLabel(m.currentPeriod), leaf)
+		parts = append(parts, periodLabel(m.currentPeriod), leaf)
 		if item, ok := m.list.SelectedItem().(commitItem); ok {
 			parts = append(parts, ansi.Truncate(item.Title(), 60, "…"))
 		}
@@ -670,20 +678,69 @@ func (m model) breadcrumbParts() []string {
 	return parts
 }
 
-// topPeriodLabel names the top-level list for a mode.
-func topPeriodLabel(m mode) string {
-	if m == modeYears {
-		return "Years"
-	}
-	return "Months"
-}
-
 // headingView names the project above the breadcrumb bar.
 func (m model) headingView() string {
 	if m.project == "" {
 		return ""
 	}
-	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project)
+	unit := "month"
+	if m.mode == modeYears || (m.mode != modeMonths && isYear(m.currentPeriod)) {
+		unit = "year"
+	}
+	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project) + footerStyle.Render(" by "+unit)
+}
+
+const breadcrumbRow = 1
+
+const (
+	crumbPeriod = iota
+	crumbAuthor
+	crumbTeam
+)
+
+type crumbSpan struct {
+	start, end int
+	kind       int
+}
+
+func (m model) crumbSpans() []crumbSpan {
+	parts := m.breadcrumbParts()
+	var spans []crumbSpan
+	x := 0
+	for i, part := range parts {
+		w := lipgloss.Width(part)
+		kind := -1
+		switch m.mode {
+		case modeAuthors, modeTeams:
+			if i == 0 {
+				kind = crumbPeriod
+			}
+		case modeCommits:
+			if i == 0 {
+				kind = crumbPeriod
+			}
+			if i == 1 {
+				kind = crumbAuthor
+				if m.currentTeam != "" {
+					kind = crumbTeam
+				}
+			}
+		}
+		if kind >= 0 {
+			spans = append(spans, crumbSpan{x, x + w, kind})
+		}
+		x += w + lipgloss.Width(" ❯ ")
+	}
+	return spans
+}
+
+func (m model) crumbAt(x int) (int, bool) {
+	for _, span := range m.crumbSpans() {
+		if x >= span.start && x < span.end {
+			return span.kind, true
+		}
+	}
+	return 0, false
 }
 
 // breadcrumbBar renders the breadcrumb across the top of the screen.
@@ -697,7 +754,7 @@ func (m model) breadcrumbBar() string {
 		if i == len(parts)-1 {
 			b.WriteString(titleStyle.Render(part))
 		} else {
-			b.WriteString(part)
+			b.WriteString(crumbStyle.Render(part))
 		}
 	}
 	return b.String()

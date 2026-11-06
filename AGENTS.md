@@ -9,9 +9,11 @@ Two top-level period views, months (default) and years, switched with `y`
 and `m`. Either period drills down through three levels, each with a preview
 pane on the right. A heading above a breadcrumb bar spans the top of the
 screen instead of a list title or preview header: the heading reads
-"contributions to [project]" and the breadcrumb's leaf is the current
-selection, so it changes as the cursor moves (eg "Years ❯ 2026 ❯ Payments
-Team"):
+"contributions to [project] by month" (or "by year"), and the breadcrumb's
+leaf is the current selection, so it changes as the cursor moves (eg "June
+2026 ❯ Payments Team"). Underlined crumbs are clickable: the period crumb
+goes to the period list, an author crumb to the contributors list, a team
+crumb to the teams view:
 
 1. Months or years, newest first; the preview lists the period's
    contributors with commit counts, busiest first
@@ -46,6 +48,10 @@ Behavioral decisions worth remembering:
 - Cursor position is restored when backing out; drilling in starts at the
   top (bubbles list preserves its index across SetItems, so every
   transition selects explicitly)
+- The mouse is captured: clicking a list item selects it and drills in,
+  like enter (clicking the already-open diff's commit again closes the
+  pane), and the scroll wheel moves the list cursor or scrolls the open
+  diff, which costs terminal text selection while the app runs
 - The list's own filtering (`/`) is disabled; MJ does not want it
 - Contributor metadata lives repo-locally, outside history:
   `.jj/git-contributions-metadata.json` (jj) or
