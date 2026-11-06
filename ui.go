@@ -1098,14 +1098,21 @@ func (m model) View() string {
 		}
 	}
 
-	return m.headingView() + "\n" + m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), m.previewPane(preview)) + "\n" + m.footer()
+	listBlock := lipgloss.NewStyle().Width(m.width / 3).Render(m.list.View())
+
+	return m.headingView() + "\n" + m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, listBlock, m.previewPane(preview)) + "\n" + m.footer()
 }
 
 // previewPane pads the preview and clamps it to the terminal height, so a
 // month with many contributors cannot push the footer off the top of the
-// screen.
+// screen. The diff pane brings its own border and padding, so it is not
+// padded again: the extra columns would push its right border off screen.
 func (m model) previewPane(preview string) string {
-	return lipgloss.NewStyle().MaxHeight(m.height - 3).Render(previewStyle.Render(preview))
+	body := preview
+	if !(m.mode == modeCommits && m.showDiff) {
+		body = previewStyle.Render(body)
+	}
+	return lipgloss.NewStyle().MaxHeight(m.height - 3).Render(body)
 }
 
 // RunUI runs the TUI over an already-loaded history.
