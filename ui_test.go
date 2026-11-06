@@ -129,6 +129,29 @@ func TestCrumbSpans(t *testing.T) {
 	}
 }
 
+func TestSwitchToTeamsRestoresTeam(t *testing.T) {
+	commits := []Commit{
+		{Day: "2024-03-01", Month: "2024-03", Author: "Alice"},
+		{Day: "2024-03-02", Month: "2024-03", Author: "Bob"},
+	}
+	metadata := Metadata{
+		"Alice": {Team: "Payments"},
+		"Bob":   {Team: "Checkout"},
+	}
+	m := model{
+		commits:  commits,
+		metadata: metadata,
+		mode:     modeTeams,
+		list:     list.New([]list.Item{}, list.NewDefaultDelegate(), 20, 5),
+	}
+	entered, _ := m.switchToTeamCommits("Checkout")
+	back, _ := entered.(model).switchToTeams("2024-03")
+	item, ok := back.(model).list.SelectedItem().(teamItem)
+	if !ok || item.summary.Team != "Checkout" {
+		t.Errorf("backing out of a team's commits: got %v, want Checkout selected", item)
+	}
+}
+
 func TestProjectName(t *testing.T) {
 	if got := projectName(&Repo{Dir: "/Users/max/src/github/maxjacobson/rubocop"}); got != "rubocop" {
 		t.Errorf("jj repo: got %q, want %q", got, "rubocop")

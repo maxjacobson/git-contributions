@@ -613,6 +613,7 @@ func (m model) teamOf(author string) string {
 }
 
 func (m model) switchToTeams(period string) (tea.Model, tea.Cmd) {
+	desired := m.currentTeam
 	m.currentPeriod = period
 	m.currentTeam = ""
 
@@ -624,12 +625,16 @@ func (m model) switchToTeams(period string) (tea.Model, tea.Cmd) {
 	}
 	teams := SummarizeTeams(periodCommits, m.teamOf)
 	items := make([]list.Item, len(teams))
+	index := 0
 	for i, summary := range teams {
 		items[i] = teamItem{summary: summary}
+		if summary.Team == desired {
+			index = i
+		}
 	}
 	m.list.SetStatusBarItemName("team", "teams")
 	m.list.SetItems(items)
-	m.list.Select(0)
+	m.list.Select(index)
 	m.mode = modeTeams
 	return m, nil
 }
