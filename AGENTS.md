@@ -112,7 +112,8 @@ tools and display it:
   rather than waiting to be asked
 - To publish: describe the commit, then `jj bookmark set main -r @` and
   `jj git push` (after `jj new`, `main -r @-` instead). Setting the bookmark
-  to `@-` before describing has twice left the newest commit off main
+  to `@-` before describing has twice left the newest commit off main.
+  After pushing, run `just install` so MJ's installed binary is current
 - Tests cover the core logic, not the UI; MJ tests the UI by hand and gives
   fast feedback — for UI iterations, build for him to try, but commit and
   push without waiting on his feedback
