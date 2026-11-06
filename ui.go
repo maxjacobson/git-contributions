@@ -229,7 +229,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		m.height = msg.Height
 		m.width = msg.Width
-		m.list.SetSize(msg.Width/3, msg.Height-3)
+		m.list.SetSize(msg.Width/3, msg.Height-4)
 		m.resizeDiff()
 		if m.mode == modeCommits && m.showDiff && m.diffHash != "" {
 			m.loadDiff(m.diffHash)
@@ -412,7 +412,7 @@ func (m model) drillIn() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-const listItemsTop = 3
+const listItemsTop = 4
 
 const listItemRows = 3
 
@@ -445,10 +445,10 @@ func (m model) diffPaneWidth() int {
 }
 
 // diffPaneHeight is the height available for the diff viewport, leaving room
-// for the heading, the breadcrumb bar, the footer, the pane border and
-// padding.
+// for the heading, the blank line, the breadcrumb bar, the footer, the pane
+// border and padding.
 func (m model) diffPaneHeight() int {
-	h := m.height - 7
+	h := m.height - 8
 	if h < 1 {
 		h = 1
 	}
@@ -703,7 +703,7 @@ func (m model) headingView() string {
 	return footerStyle.Render("contributions to ") + titleStyle.Render(m.project) + footerStyle.Render(" by "+unit)
 }
 
-const breadcrumbRow = 1
+const breadcrumbRow = 2
 
 const (
 	crumbPeriod = iota
@@ -1170,7 +1170,7 @@ func (m model) View() string {
 
 	listBlock := lipgloss.NewStyle().Width(m.width / 3).Render(m.list.View())
 
-	return m.headingView() + "\n" + m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, listBlock, m.previewPane(preview)) + "\n" + m.footer()
+	return m.headingView() + "\n\n" + m.breadcrumbBar() + "\n" + lipgloss.JoinHorizontal(lipgloss.Top, listBlock, m.previewPane(preview)) + "\n" + m.footer()
 }
 
 // previewPane pads the preview and clamps it to the terminal height, so a
@@ -1182,7 +1182,7 @@ func (m model) previewPane(preview string) string {
 	if !(m.mode == modeCommits && m.showDiff) {
 		body = previewStyle.Render(body)
 	}
-	return lipgloss.NewStyle().MaxHeight(m.height - 3).Render(body)
+	return lipgloss.NewStyle().MaxHeight(m.height - 4).Render(body)
 }
 
 // RunUI runs the TUI over an already-loaded history.
