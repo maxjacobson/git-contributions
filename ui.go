@@ -1112,7 +1112,7 @@ func (m model) footer() string {
 	case modeYears:
 		keys = append(keys, "m months", "enter contributors", "esc/q quit")
 	case modeAuthors:
-		keys = append(keys, "enter commits", "t teams", "esc/q back", "ctrl+c quit")
+		keys = append(keys, "enter commits", "e edit", "t teams", "esc/q back", "ctrl+c quit")
 	case modeTeams:
 		keys = append(keys, "enter commits", "t people", "esc/q back", "ctrl+c quit")
 	case modeCommits:
